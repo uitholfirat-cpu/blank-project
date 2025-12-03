@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "preinstall": "node scripts/cleanup.cjs preinstall",
+    "predev": "node scripts/cleanup.cjs predev",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
