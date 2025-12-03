@@ -19,7 +19,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { gradeDistribution, originalityStats } from "@/lib/mock-data";
+import { useReport } from "@/components/report-context";
 
 const barColors = {
   submissions: "#38bdf8",
@@ -32,6 +32,19 @@ const pieColors = {
 };
 
 export function OverviewCharts() {
+  const { reportData } = useReport();
+
+  if (!reportData) {
+    return (
+      <section className="mt-6 rounded-xl border border-dashed border-border/80 bg-card/80 p-4 text-xs text-muted-foreground">
+        <p className="text-sm font-medium text-foreground">No data found.</p>
+        <p>Upload a ZIP file to view submissions per question and originality charts.</p>
+      </section>
+    );
+  }
+
+  const { gradeDistribution, originalityStats } = reportData;
+
   return (
     <section className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,_2fr)_minmax(0,_1.2fr)]">
       <Card className="border-border/80 bg-card/90">

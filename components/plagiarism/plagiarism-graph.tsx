@@ -11,7 +11,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import type { PlagiarismCase } from "@/lib/mock-data";
+import type { PlagiarismCase } from "@/components/report-context";
 
 type PlagiarismGraphProps = {
   cases: PlagiarismCase[];
