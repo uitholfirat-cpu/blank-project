@@ -1,0 +1,24 @@
+# MasterGrader - Dependencies
+# کتابخانه‌های مورد نیاز برای اجرای MasterGrader
+
+# Python Version: 3.7+
+
+# کتابخانه‌های استاندارد پایتون (نیازی به نصب ندارند):
+# - os, shutil, zipfile, re, glob, difflib, csv, pathlib, typing, collections, datetime, tempfile
+
+# کتابخانه‌های خارجی (نیاز به نصب دارند):
+# برای پشتیبانی از فایل‌های RAR و 7Z:
+patoolib>=1.12.0
+
+# برای خوشه‌بندی تقلب (اختیاری اما توصیه می‌شود):
+networkx>=2.5
+
+# کتابخانه‌های جایگزین (اختیاری):
+# rarfile>=4.0  # جایگزین patoolib برای RAR (فقط RAR را پشتیبانی می‌کند)
+
+# نصب:
+# pip install -r requirements.txt
+#
+# یا نصب دستی:
+# pip install patoolib networkx
+
