@@ -15,13 +15,17 @@ import {
   TableRow
 } from "@/components/ui/table";
 import { useSettings } from "@/components/settings/settings-context";
-import type { PlagiarismCase, QuestionId } from "@/lib/mock-data";
+import {
+  useReport,
+  type PlagiarismCase,
+  type QuestionId
+} from "@/components/report-context";
 import { cn } from "@/lib/utils";
 
 type SortKey = "similarity" | "questionId" | "student";
 
 type PlagiarismTableProps = {
-  cases: PlagiarismCase[];
+  cases?: PlagiarismCase[];
 };
 
 const questionLabels: Record<QuestionId, string> = {
@@ -33,9 +37,11 @@ const questionLabels: Record<QuestionId, string> = {
   Q6: "Q6 – GCD"
 };
 
-export function PlagiarismTable({ cases }: PlagiarismTableProps) {
+export function PlagiarismTable({ cases: casesProp }: PlagiarismTableProps) {
   const router = useRouter();
   const { settings } = useSettings();
+  const { reportData } = useReport();
+
   const [sortKey, setSortKey] = useState<SortKey>("similarity");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [questionFilter, setQuestionFilter] = useState<QuestionId | "all">(
@@ -44,6 +50,9 @@ export function PlagiarismTable({ cases }: PlagiarismTableProps) {
   const [search, setSearch] = useState("");
 
   const threshold = settings.threshold ?? 80;
+
+  const cases: PlagiarismCase[] =
+    casesProp ?? reportData?.plagiarismCases ?? [];
 
   const filteredAndSorted = useMemo(() => {
     let result = [...cases];
@@ -99,6 +108,30 @@ export function PlagiarismTable({ cases }: PlagiarismTableProps) {
     if (similarity >= threshold - 30) return "Borderline";
     return "Low";
   };
+
+  if (!cases.length) {
+    return (
+      <section className="space-y-4">
+        <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Suspicious pairs
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Sorted by similarity. Click a row to open a side-by-side code
+              diff.
+            </p>
+          </div>
+        </header>
+        <div className="rounded-xl border border-dashed border-border/80 bg-card/80 p-4 text-xs text-muted-foreground">
+          <p className="text-sm font-medium text-foreground">
+            No data found.
+          </p>
+          <p>Upload a ZIP file to run the plagiarism engine.</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-4">

@@ -1,13 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { CloudUpload, FolderOpen, FileArchive } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { useReport, type ReportData } from "@/components/report-context";
 
-type PipelineStep = "idle" | "uploading" | "extracting" | "tokenizing" | "analyzing" | "done";
+type PipelineStep =
+  | "idle"
+  | "uploading"
+  | "extracting"
+  | "tokenizing"
+  | "analyzing"
+  | "done";
 
 const stepOrder: PipelineStep[] = [
   "uploading",
@@ -35,57 +43,120 @@ function stepLabel(step: PipelineStep) {
 }
 
 export function UploadDropzone() {
+  const router = useRouter();
+  const { setReportData } = useReport();
+
   const [isDragging, setIsDragging] = useState(false);
   const [stepIndex, setStepIndex] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [uploadedSummary, setUploadedSummary] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const activeStep: PipelineStep =
-    stepIndex === null ? "idle" : stepOrder[Math.min(stepIndex, stepOrder.length - 1)];
+    stepIndex === null
+      ? "idle"
+      : stepOrder[Math.min(stepIndex, stepOrder.length - 1)];
 
   const reset = useCallback(() => {
     setStepIndex(null);
     setProgress(0);
-  }, []);
+    setUploadedSummary(null);
+    setError(null);
+    setReportData(null);
+  }, [setReportData]);
 
-  const startPipeline = useCallback((files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  const sendToBackend = useCallback(
+    async (file: File) => {
+      setIsUploading(true);
+      setError(null);
 
-    const zipCount = Array.from(files).filter((f) =>
-      f.name.toLowerCase().endsWith(".zip")
-    ).length;
+      // Start pipeline at "uploading"
+      setStepIndex(0);
+      setProgress(10);
 
-    setUploadedSummary(
-      `${files.length} item${files.length > 1 ? "s" : ""} uploaded • ` +
-        `${zipCount} archive${zipCount === 1 ? "" : "s"} detected`
-    );
+      const formData = new FormData();
+      formData.append("file", file);
 
-    setStepIndex(0);
-    setProgress(4);
-  }, []);
+      try {
+        const response = await fetch("http://localhost:8000/upload", {
+          method: "POST",
+          body: formData
+        });
 
-  useEffect(() => {
-    if (stepIndex === null) return;
-    if (stepIndex >= stepOrder.length - 1) {
-      setProgress(100);
-      return;
-    }
+        if (!response.ok) {
+          let message = "Upload failed. Please check your ZIP file and try again.";
+          try {
+            const payload = (await response.json()) as {
+              detail?: { message?: string } | string;
+            };
+            if (payload && typeof payload.detail === "object") {
+              message = payload.detail.message ?? message;
+            } else if (typeof payload.detail === "string") {
+              message = payload.detail;
+            }
+          } catch {
+            // Ignore JSON parsing errors and fall back to default message.
+          }
+          throw new Error(message);
+        }
 
-    const stepDuration = 900 + stepIndex * 300;
+        // Move pipeline to "analyzing" while we parse and store data
+        const analyzingIndex = stepOrder.indexOf("analyzing");
+        if (analyzingIndex !== -1) {
+          setStepIndex(analyzingIndex);
+          setProgress(70);
+        }
 
-    const interval = window.setInterval(() => {
-      setProgress((prev) => Math.min(prev + 10, 96));
-    }, stepDuration / 8);
+        const data = (await response.json()) as ReportData;
+        setReportData(data);
 
-    const timeout = window.setTimeout(() => {
-      setStepIndex((prev) => (prev === null ? null : prev + 1));
-    }, stepDuration);
+        // Mark as done and navigate to dashboard
+        setStepIndex(stepOrder.length - 1);
+        setProgress(100);
 
-    return () => {
-      window.clearInterval(interval);
-      window.clearTimeout(timeout);
-    };
-  }, [stepIndex]);
+        router.push("/dashboard");
+      } catch (err) {
+        console.error(err);
+        setStepIndex(null);
+        setProgress(0);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An unexpected error occurred while running analysis."
+        );
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [router, setReportData]
+  );
+
+  const startPipeline = useCallback(
+    (files: FileList | null) => {
+      if (!files || files.length === 0) return;
+
+      const allFiles = Array.from(files);
+      const zipFiles = allFiles.filter((f) =>
+        f.name.toLowerCase().endsWith(".zip")
+      );
+
+      if (zipFiles.length === 0) {
+        setError("Please upload at least one .zip file containing submissions.");
+        return;
+      }
+
+      const zipCount = zipFiles.length;
+
+      setUploadedSummary(
+        `${allFiles.length} item${allFiles.length > 1 ? "s" : ""} selected • ` +
+          `${zipCount} archive${zipCount === 1 ? "" : "s"} detected`
+      );
+
+      void sendToBackend(zipFiles[0]);
+    },
+    [sendToBackend]
+  );
 
   const onDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -108,13 +179,6 @@ export function UploadDropzone() {
     [reset, startPipeline]
   );
 
-  const stepProgress =
-    activeStep === "idle"
-      ? 0
-      : activeStep === "done"
-      ? 100
-      : ((stepIndex ?? 0) / (stepOrder.length - 1)) * 100;
-
   return (
     <section className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 p-[1px] shadow-soft-card">
       <div className="relative flex flex-col gap-6 rounded-2xl bg-gradient-to-br from-slate-950/80 via-slate-950 to-slate-950/90 px-6 py-6 lg:flex-row lg:items-center lg:gap-8 lg:px-8 lg:py-8">
@@ -127,11 +191,20 @@ export function UploadDropzone() {
             Drag in a lab folder or zipped submissions.
           </h1>
           <p className="max-w-xl text-sm text-slate-300">
-            MasterGrader will unpack nested archives, normalize C code, and pre-compute
-            similarity metrics for each question before you even open the dashboard.
+            MasterGrader will unpack nested archives, normalize C code, and
+            pre-compute similarity metrics for each question before you even
+            open the dashboard.
           </p>
           {uploadedSummary && (
             <p className="text-xs text-emerald-300/80">{uploadedSummary}</p>
+          )}
+          {isUploading && (
+            <p className="text-xs text-sky-300">Running analysis...</p>
+          )}
+          {error && !isUploading && (
+            <p className="text-xs text-red-400">
+              {error}
+            </p>
           )}
         </div>
 
@@ -169,9 +242,9 @@ export function UploadDropzone() {
             <div className="hidden flex-col items-end gap-1 text-xs text-slate-400 sm:flex">
               <span className="inline-flex items-center gap-1">
                 <FileArchive className="h-3.5 w-3.5" />
-                <span>.zip, .tar.gz, raw folders</span>
+                <span>.zip archives</span>
               </span>
-              <span>Max 2GB per batch (demo)</span>
+              <span>Max 2GB per batch</span>
             </div>
           </div>
 
@@ -183,7 +256,8 @@ export function UploadDropzone() {
               Drop files here or click to browse
             </span>
             <span className="text-[0.7rem]">
-              Upload your assignment root directory or multiple .zip files for Q1–Q6.
+              Upload your assignment root directory or one or more .zip files
+              for Q1–Q6.
             </span>
             <input
               id="upload-input"
@@ -191,6 +265,7 @@ export function UploadDropzone() {
               multiple
               className="hidden"
               onChange={onInputChange}
+              accept=".zip"
             />
           </label>
 
@@ -207,8 +282,10 @@ export function UploadDropzone() {
             <div className="mt-1 flex items-center justify-between text-[0.7rem] text-slate-400">
               <div className="flex gap-2">
                 {stepOrder.map((step, index) => {
-                  const reached = stepIndex !== null && index <= (stepIndex ?? 0);
-                  const isCurrent = stepIndex !== null && index === (stepIndex ?? 0);
+                  const reached =
+                    stepIndex !== null && index <= (stepIndex ?? 0);
+                  const isCurrent =
+                    stepIndex !== null && index === (stepIndex ?? 0);
                   return (
                     <div
                       key={step}
@@ -221,8 +298,10 @@ export function UploadDropzone() {
                       <span
                         className={cn(
                           "flex h-4 w-4 items-center justify-center rounded-full border border-slate-600/80 text-[0.6rem]",
-                          reached && "border-sky-500 bg-sky-500/20 text-sky-100",
-                          isCurrent && "animate-pulse border-sky-400 bg-sky-500/30"
+                          reached &&
+                            "border-sky-500 bg-sky-500/20 text-sky-100",
+                          isCurrent &&
+                            "animate-pulse border-sky-400 bg-sky-500/30"
                         )}
                       >
                         {index + 1}
@@ -243,15 +322,16 @@ export function UploadDropzone() {
           </div>
 
           <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2 text-[0.7rem] text-slate-500">
-            <span>Mock pipeline – integrates with your Python backend via API.</span>
+            <span>Connected to your Python backend via FastAPI.</span>
             <Button
               type="button"
               variant="outline"
               size="sm"
               className="hidden border-slate-700/80 bg-slate-900/80 text-slate-200 hover:bg-slate-800/80 sm:inline-flex"
               onClick={reset}
+              disabled={isUploading}
             >
-              Reset demo
+              Reset
             </Button>
           </div>
         </div>

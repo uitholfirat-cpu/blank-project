@@ -30,9 +30,11 @@ class PlagiarismCaseModel(BaseModel):
     studentA: str
     studentB: str
     similarity: float
-    clusterId: Optional[str] = None
-    codeA: Optional[str] = None
-    codeB: Optional[str] = None
+    # Keep these as required fields so the JSON shape matches the frontend mock data exactly.
+    # When data is missing we return empty strings from the builder functions.
+    clusterId: str
+    codeA: str
+    codeB: str
 
 
 class DashboardStats(BaseModel):

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import type { PlagiarismCase } from "@/lib/mock-data";
+import type { PlagiarismCase } from "@/components/report-context";
 import { cn } from "@/lib/utils";
 
 type DiffViewerProps = {

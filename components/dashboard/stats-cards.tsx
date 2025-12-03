@@ -9,13 +9,25 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { dashboardStats } from "@/lib/mock-data";
 import { useSettings } from "@/components/settings/settings-context";
+import { useReport } from "@/components/report-context";
 
 export function StatsCards() {
   const { settings } = useSettings();
-  const highRiskThreshold = settings.threshold ?? 85;
+  const { reportData } = useReport();
 
+  if (!reportData) {
+    return (
+      <section className="rounded-xl border border-dashed border-border/80 bg-card/80 p-4 text-xs text-muted-foreground">
+        <p className="text-sm font-medium text-foreground">No data found.</p>
+        <p>Upload a ZIP file to view cohort statistics.</p>
+      </section>
+    );
+  }
+
+  const { dashboardStats } = reportData;
+
+  const highRiskThreshold = settings.threshold ?? 85;
   const highRiskCasesAtThreshold = dashboardStats.highRiskCases;
 
   const cards = [
