@@ -26,3 +26,5 @@ uvicorn[standard]>=0.30.0
 # یا نصب دستی:
 # pip install patoolib networkx
 
+python-multipart>=0.0.20
+
