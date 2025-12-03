@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens inspired by shadcn/ui with a MasterGrader twist */
+
+:root {
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --muted: 215 20% 92%;
+  --muted-foreground: 215 15% 40%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --border: 215 22% 90%;
+  --input: 215 22% 90%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --primary: 222 84% 56%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 222 35% 20%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 199 89% 48%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 222 84% 56%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 222 47% 6%;
+  --foreground: 210 40% 98%;
+  --muted: 217 19% 14%;
+  --muted-foreground: 215 15% 65%;
+  --popover: 222 47% 6%;
+  --popover-foreground: 210 40% 98%;
+  --border: 217 19% 18%;
+  --input: 217 19% 18%;
+  --card: 222 47% 8%;
+  --card-foreground: 210 40% 98%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 6%;
+  --secondary: 222 40% 16%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 199 89% 55%;
+  --accent-foreground: 222 47% 6%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 222 84% 56%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+/* Scrollbars */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground)) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground));
+  border-radius: 999px;
+}
+
+/* Page layout helpers */
+
+.app-shell {
+  @apply min-h-screen bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 text-slate-100;
+}
+
+.app-shell-light {
+  @apply min-h-screen bg-slate-50 text-slate-900;
+}
+
+.app-main {
+  @apply flex min-h-screen;
+}
+
+.app-sidebar {
+  @apply hidden border-r bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/70 md:flex md:w-64 lg:w-72;
+}
+
+.app-content {
+  @apply flex min-h-screen flex-1 flex-col;
+}
