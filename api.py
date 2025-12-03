@@ -5,9 +5,9 @@ import shutil
 import tempfile
 import zipfile
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, BinaryIO, Dict, List, Optional, Tuple
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -30,9 +30,9 @@ class PlagiarismCaseModel(BaseModel):
     studentA: str
     studentB: str
     similarity: float
-    clusterId: str
-    codeA: str
-    codeB: str
+    clusterId: Optional[str] = None
+    codeA: Optional[str] = None
+    codeB: Optional[str] = None
 
 
 class DashboardStats(BaseModel):
@@ -60,6 +60,25 @@ class UploadResponse(BaseModel):
     originalityStats: List[OriginalityStatItem]
 
 
+class GradingSettings(BaseModel):
+    threshold: Optional[float] = None
+    ignore_comments: Optional[bool] = None
+    normalize_whitespace: Optional[bool] = None
+    tokenization_enabled: Optional[bool] = None
+
+
+class SubmissionValidationError(Exception):
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+
+class GradingEngineError(Exception):
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+
 app = FastAPI(title="MasterGrader API", version="1.0.0")
 
 # Allow the Next.js dev server to call this API
@@ -81,71 +100,172 @@ async def health() -> Dict[str, str]:
 
 
 @app.post("/upload", response_model=UploadResponse)
-async def upload(file: UploadFile = File(...)) -> UploadResponse:
-    if not file.filename.lower().endswith(".zip"):
-        raise HTTPException(status_code=400, detail="Only .zip files are supported.")
-
-    work_dir = tempfile.mkdtemp(prefix="mastergrader_")
-    upload_path = os.path.join(work_dir, file.filename)
-
-    # Save the uploaded file to disk
-    try:
-        with open(upload_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {exc}") from exc
-
-    # Extract the uploaded ZIP to a temporary root directory
-    root_dir = os.path.join(work_dir, "root")
-    os.makedirs(root_dir, exist_ok=True)
-
-    try:
-        with zipfile.ZipFile(upload_path, "r") as zf:
-            zf.extractall(root_dir)
-    except zipfile.BadZipFile as exc:
-        raise HTTPException(status_code=400, detail=f"Uploaded file is not a valid zip: {exc}") from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to extract zip: {exc}") from exc
-
-    # If the archive contains a single top-level directory, treat that as ROOT_DIR
-    try:
-        entries = [os.path.join(root_dir, name) for name in os.listdir(root_dir)]
-        top_dirs = [p for p in entries if os.path.isdir(p)]
-        top_files = [p for p in entries if os.path.isfile(p)]
-        if len(top_dirs) == 1 and not top_files:
-            root_dir = top_dirs[0]
-    except Exception:
-        # If anything goes wrong here, fall back to using the original root_dir
-        pass
-
-    # Use a per-request output directory; MasterGrader will populate this
-    output_dir = os.path.join(work_dir, "organized")
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Configure MasterGrader to use our temporary paths
-    grader = MasterGrader(
-        root_dir=root_dir,
-        output_dir=output_dir,
-        threshold=config.Config.SIMILARITY_THRESHOLD,
-        template_path=config.Config.TEMPLATE_CODE_PATH,
+async def upload(
+    file: UploadFile = File(...),
+    threshold: Optional[float] = Query(None),
+    ignore_comments: Optional[bool] = Query(None),
+    normalize_whitespace: Optional[bool] = Query(None),
+    tokenization_enabled: Optional[bool] = Query(None),
+) -> UploadResponse:
+    settings = GradingSettings(
+        threshold=threshold,
+        ignore_comments=ignore_comments,
+        normalize_whitespace=normalize_whitespace,
+        tokenization_enabled=tokenization_enabled,
     )
 
-    success = grader.run()
-    if not success:
-        raise HTTPException(status_code=500, detail="MasterGrader failed to process the submissions.")
+    try:
+        return process_submission_batch(
+            file_stream=file.file,
+            filename=file.filename or "submissions.zip",
+            settings=settings,
+        )
+    except SubmissionValidationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_submission", "message": exc.message},
+        ) from exc
+    except GradingEngineError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "grading_failed", "message": exc.message},
+        ) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "internal_error", "message": str(exc)},
+        ) from exc
 
-    # Build JSON response matching the frontend's mock-data structure
-    plagiarism_cases = _build_plagiarism_cases(grader)
-    dashboard_stats = _build_dashboard_stats(grader, plagiarism_cases)
-    grade_distribution = _build_grade_distribution(grader, plagiarism_cases)
-    originality_stats = _build_originality_stats(grader, plagiarism_cases)
 
-    return UploadResponse(
-        plagiarismCases=plagiarism_cases,
-        dashboardStats=dashboard_stats,
-        gradeDistribution=grade_distribution,
-        originalityStats=originality_stats,
-    )
+def _snapshot_config() -> Dict[str, Any]:
+    return {
+        "ROOT_DIR": config.Config.ROOT_DIR,
+        "OUTPUT_DIR": config.Config.OUTPUT_DIR,
+        "SIMILARITY_THRESHOLD": config.Config.SIMILARITY_THRESHOLD,
+        "TOKENIZATION_ENABLED": config.Config.TOKENIZATION_ENABLED,
+        "NORMALIZE_WHITESPACE": config.Config.NORMALIZE_WHITESPACE,
+        "REMOVE_COMMENTS": config.Config.REMOVE_COMMENTS,
+        "REMOVE_INCLUDES": config.Config.REMOVE_INCLUDES,
+    }
+
+
+def _restore_config(snapshot: Dict[str, Any]) -> None:
+    config.Config.ROOT_DIR = snapshot["ROOT_DIR"]
+    config.Config.OUTPUT_DIR = snapshot["OUTPUT_DIR"]
+    config.Config.SIMILARITY_THRESHOLD = snapshot["SIMILARITY_THRESHOLD"]
+    config.Config.TOKENIZATION_ENABLED = snapshot["TOKENIZATION_ENABLED"]
+    config.Config.NORMALIZE_WHITESPACE = snapshot["NORMALIZE_WHITESPACE"]
+    config.Config.REMOVE_COMMENTS = snapshot["REMOVE_COMMENTS"]
+    config.Config.REMOVE_INCLUDES = snapshot["REMOVE_INCLUDES"]
+
+
+def _apply_settings_from_request(settings: GradingSettings) -> None:
+    if settings.threshold is not None:
+        config.Config.SIMILARITY_THRESHOLD = settings.threshold
+    if settings.ignore_comments is not None:
+        config.Config.REMOVE_COMMENTS = settings.ignore_comments
+    if settings.normalize_whitespace is not None:
+        config.Config.NORMALIZE_WHITESPACE = settings.normalize_whitespace
+    if settings.tokenization_enabled is not None:
+        config.Config.TOKENIZATION_ENABLED = settings.tokenization_enabled
+
+
+def process_submission_batch(
+    file_stream: BinaryIO,
+    filename: str,
+    settings: GradingSettings,
+) -> UploadResponse:
+    safe_name = os.path.basename(filename) or "submissions.zip"
+
+    if not safe_name.lower().endswith(".zip"):
+        raise SubmissionValidationError("Only .zip files are supported.")
+
+    with tempfile.TemporaryDirectory(prefix="mastergrader_") as work_dir:
+        upload_path = os.path.join(work_dir, safe_name)
+
+        # Save uploaded file to disk
+        try:
+            try:
+                file_stream.seek(0)
+            except Exception:
+                # Not all streams are seekable; ignore if seeking fails
+                pass
+
+            with open(upload_path, "wb") as buffer:
+                shutil.copyfileobj(file_stream, buffer)
+        except Exception as exc:
+            raise SubmissionValidationError(f"Failed to save uploaded file: {exc}") from exc
+
+        root_dir = os.path.join(work_dir, "root")
+        os.makedirs(root_dir, exist_ok=True)
+
+        # Extract the uploaded ZIP to a temporary root directory
+        try:
+            with zipfile.ZipFile(upload_path, "r") as zf:
+                if not zf.infolist():
+                    raise SubmissionValidationError("Uploaded zip archive is empty.")
+                zf.extractall(root_dir)
+        except SubmissionValidationError:
+            raise
+        except zipfile.BadZipFile as exc:
+            raise SubmissionValidationError(f"Uploaded file is not a valid zip archive: {exc}") from exc
+        except Exception as exc:
+            raise SubmissionValidationError(f"Failed to extract uploaded archive: {exc}") from exc
+
+        # If the archive contains a single top-level directory, treat that as ROOT_DIR
+        try:
+            entries = [os.path.join(root_dir, name) for name in os.listdir(root_dir)]
+            top_dirs = [p for p in entries if os.path.isdir(p)]
+            top_files = [p for p in entries if os.path.isfile(p)]
+            if len(top_dirs) == 1 and not top_files:
+                root_dir = top_dirs[0]
+        except Exception:
+            # If anything goes wrong here, fall back to using the original root_dir
+            pass
+
+        # Ensure there is at least some content after extraction
+        if not any(os.scandir(root_dir)):
+            raise SubmissionValidationError("No files found after extracting archive.")
+
+        # Use a per-request output directory; MasterGrader will populate this
+        output_dir = os.path.join(work_dir, "organized")
+        os.makedirs(output_dir, exist_ok=True)
+
+        snapshot = _snapshot_config()
+        try:
+            _apply_settings_from_request(settings)
+
+            grader = MasterGrader(
+                root_dir=root_dir,
+                output_dir=output_dir,
+                threshold=config.Config.SIMILARITY_THRESHOLD,
+                template_path=config.Config.TEMPLATE_CODE_PATH,
+            )
+
+            try:
+                success = grader.run()
+            except Exception as exc:
+                raise GradingEngineError(f"Grading engine raised an error: {exc}") from exc
+
+            if not success:
+                raise GradingEngineError("Grading engine reported failure for this batch.")
+
+            # Build JSON response matching the frontend's expected data structure
+            plagiarism_cases = _build_plagiarism_cases(grader)
+            dashboard_stats = _build_dashboard_stats(grader, plagiarism_cases)
+            grade_distribution = _build_grade_distribution(grader, plagiarism_cases)
+            originality_stats = _build_originality_stats(grader, plagiarism_cases)
+
+            return UploadResponse(
+                plagiarismCases=plagiarism_cases,
+                dashboardStats=dashboard_stats,
+                gradeDistribution=grade_distribution,
+                originalityStats=originality_stats,
+            )
+        finally:
+            _restore_config(snapshot)
 
 
 def _read_code_file(path: Optional[str]) -> str:
