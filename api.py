@@ -100,8 +100,12 @@ app.add_middleware(
 
 # Serve the statically exported Next.js frontend (from the `out` directory) at the root path.
 FRONTEND_BUILD_DIR = os.path.join(os.path.dirname(__file__), "out")
-if os.path.isdir(FRONTEND_BUILD_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_BUILD_DIR, html=True), name="frontend")
+
+
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    detail = getattr(exc, "detail", "Not Found")
+    return {"detail": detail}
 
 
 @app.get("/health")
@@ -431,3 +435,7 @@ def _build_originality_stats(
         OriginalityStatItem(label="Original", value=original_percent),
         OriginalityStatItem(label="Suspicious", value=suspicious_percent),
     ]
+
+
+if os.path.isdir(FRONTEND_BUILD_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_BUILD_DIR, html=True), name="frontend")
