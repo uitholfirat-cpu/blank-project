@@ -3,9 +3,7 @@
 import * as React from "react";
 import { useMemo, useState } from "react";
 import { ArrowLeft, GitCompare, Sparkles } from "lucide-react";
-import Highlight, { defaultProps, type Language } from "prism-react-renderer";
-import nightOwl from "prism-react-renderer/themes/nightOwl";
-import github from "prism-react-renderer/themes/github";
+import Highlight, { defaultProps, type Language, themes } from "prism-react-renderer";
 import { useTheme } from "next-themes";
 
 import { useSettings } from "@/components/settings/settings-context";
@@ -37,7 +35,7 @@ export function DiffViewer({ pair, template, onBack }: DiffViewerProps) {
   const [dimTemplate, setDimTemplate] = useState(true);
   const [highlightMatches, setHighlightMatches] = useState(true);
 
-  const theme = resolvedTheme === "light" ? github : nightOwl;
+  const theme = resolvedTheme === "light" ? themes.github : themes.nightOwl;
 
   const { leftMeta, rightMeta } = useMemo(
     () =>
