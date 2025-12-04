@@ -9,6 +9,7 @@ from typing import Any, BinaryIO, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import config
@@ -83,17 +84,24 @@ class GradingEngineError(Exception):
 
 app = FastAPI(title="MasterGrader API", version="1.0.0")
 
-# Allow the Next.js dev server to call this API
+# Allow the Next.js dev server and local desktop app to call this API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:4321",
+        "http://127.0.0.1:4321",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve the statically exported Next.js frontend (from the `out` directory) at the root path.
+FRONTEND_BUILD_DIR = os.path.join(os.path.dirname(__file__), "out")
+if os.path.isdir(FRONTEND_BUILD_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_BUILD_DIR, html=True), name="frontend")
 
 
 @app.get("/health")
