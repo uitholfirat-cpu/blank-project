@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // output: "export",  <-- REMOVE OR COMMENT OUT THIS LINE
+  output: "export",
+  images: {
+    unoptimized: true
+  }
 };
 
 export default nextConfig;
