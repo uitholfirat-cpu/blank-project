@@ -86,7 +86,7 @@ class Config:
                     q_dir = Path(directory) / f"Q{q_num}"
                     q_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"✓ پوشه‌های خروجی آماده شدند: {cls.OUTPUT_DIR}")
+        print(f"[+] پوشه‌های خروجی آماده شدند: {cls.OUTPUT_DIR}")
     
     @classmethod
     def validate_config(cls):
