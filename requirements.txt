@@ -16,6 +16,7 @@ networkx>=2.5
 # کتابخانه‌های وب API (FastAPI + Uvicorn)
 fastapi>=0.111.0
 uvicorn[standard]>=0.30.0
+pywebview>=5.2
 
 # کتابخانه‌های جایگزین (اختیاری):
 # rarfile>=4.0  # جایگزین patoolib برای RAR (فقط RAR را پشتیبانی می‌کند)
