@@ -86,7 +86,7 @@ class Config:
                     q_dir = Path(directory) / f"Q{q_num}"
                     q_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"✓ پوشه‌های خروجی آماده شدند: {cls.OUTPUT_DIR}")
+        print(f"[+] Output folders are ready: {cls.OUTPUT_DIR}")
     
     @classmethod
     def validate_config(cls):
@@ -94,16 +94,16 @@ class Config:
         errors = []
         
         if not os.path.exists(cls.ROOT_DIR):
-            errors.append(f"مسیر ورودی وجود ندارد: {cls.ROOT_DIR}")
+            errors.append(f"Input path does not exist: {cls.ROOT_DIR}")
         
         if cls.NUM_QUESTIONS < 1:
-            errors.append("تعداد سوالات باید حداقل 1 باشد")
+            errors.append("Number of questions must be at least 1")
         
         if not (0 <= cls.SIMILARITY_THRESHOLD <= 100):
-            errors.append("آستانه شباهت باید بین 0 تا 100 باشد")
+            errors.append("Similarity threshold must be between 0 and 100")
         
         if cls.MIN_TOKEN_COUNT < 1:
-            errors.append("حداقل تعداد توکن باید مثبت باشد")
+            errors.append("Minimum token count must be positive")
         
         return errors
     
