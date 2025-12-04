@@ -211,7 +211,7 @@ export function PlagiarismTable({ cases: casesProp }: PlagiarismTableProps) {
                 <TableRow
                   key={pair.id}
                   className="cursor-pointer bg-background/60 text-sm transition-colors hover:bg-accent/40"
-                  onClick={() => router.push(`/diff/${pair.id}`)}
+                  onClick={() => router.push(`/diff?pairId=${encodeURIComponent(pair.id)}`)}
                 >
                   <TableCell className="text-xs font-semibold">
                     <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[0.7rem] font-medium">

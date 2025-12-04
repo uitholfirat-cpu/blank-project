@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { DiffViewer } from "@/components/diff/diff-viewer";
 import { useReport } from "@/components/report-context";
 import { professorTemplate } from "@/lib/professor-template";
 
-export default function DiffPage({
-  params
-}: {
-  params: { pairId: string };
-}) {
+export default function DiffPage() {
+  const searchParams = useSearchParams();
+  const pairId = searchParams.get("pairId") ?? "";
   const { reportData } = useReport();
 
   if (!reportData || !reportData.plagiarismCases.length) {
@@ -31,9 +30,25 @@ export default function DiffPage({
     );
   }
 
-  const pair = reportData.plagiarismCases.find(
-    (p) => p.id === params.pairId
-  );
+  if (!pairId) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm font-medium text-foreground">No pair selected.</p>
+        <p className="text-xs text-muted-foreground">
+          Please open the diff viewer from the plagiarism table so we know which
+          pair to show.
+        </p>
+        <Link
+          href="/plagiarism"
+          className="inline-flex text-xs font-medium text-sky-400 underline-offset-4 hover:underline"
+        >
+          Back to plagiarism overview
+        </Link>
+      </div>
+    );
+  }
+
+  const pair = reportData.plagiarismCases.find((p) => p.id === pairId);
 
   if (!pair) {
     return (

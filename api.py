@@ -7,9 +7,12 @@ import zipfile
 from enum import Enum
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi import FastAPI, File, HTTPException, UploadFile, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.exception_handlers import http_exception_handler as fastapi_http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel
 
 import config
@@ -98,10 +101,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve the statically exported Next.js frontend (from the `out` directory) at the root path.
+# Paths for the statically exported Next.js frontend
 FRONTEND_BUILD_DIR = os.path.join(os.path.dirname(__file__), "out")
+FRONTEND_BUILD_STATIC_DIR = os.path.join(FRONTEND_BUILD_DIR, "_next")
+FRONTEND_INDEX_FILE = os.path.join(FRONTEND_BUILD_DIR, "index.html")
+
+# Serve the statically exported Next.js frontend (from the `out` directory)
 if os.path.isdir(FRONTEND_BUILD_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_BUILD_DIR, html=True), name="frontend")
+    if os.path.isdir(FRONTEND_BUILD_STATIC_DIR):
+        app.mount(
+            "/_next",
+            StaticFiles(directory=FRONTEND_BUILD_STATIC_DIR),
+            name="next_static",
+        )
+    app.mount(
+        "/",
+        StaticFiles(directory=FRONTEND_BUILD_DIR, html=True),
+        name="frontend",
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_404_handler(request: Request, exc: StarletteHTTPException):
+    """
+    For unknown non-API routes, return index.html so that the client-side
+    router can handle the path. API routes still get the normal 404.
+    """
+    if exc.status_code == 404 and os.path.exists(FRONTEND_INDEX_FILE):
+        path = request.url.path
+        # Preserve JSON 404s for API and docs endpoints
+        if not (
+            path.startswith("/upload")
+            or path.startswith("/health")
+            or path.startswith("/docs")
+            or path.startswith("/openapi")
+        ):
+            return FileResponse(FRONTEND_INDEX_FILE)
+
+    return await fastapi_http_exception_handler(request, exc)
 
 
 @app.get("/health")
