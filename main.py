@@ -59,11 +59,11 @@ class MasterGrader:
         """
         self.log_entries.append(error_info)
         if config.Config.DETAILED_LOGGING:
-            print(f"  [WARN] {error_info.get('message', 'خطا')}")
+            print(f"  [WARN] {error_info.get('message', 'Error')}")
             if error_info.get('student_id'):
-                print(f"     دانشجو: {error_info['student_id']}")
+                print(f"     Student: {error_info['student_id']}")
             if error_info.get('file_path'):
-                print(f"     فایل: {error_info['file_path']}")
+                print(f"     File: {error_info['file_path']}")
 
     def validate_environment(self) -> bool:
         """
@@ -73,19 +73,19 @@ class MasterGrader:
             True اگر همه چیز معتبر باشد
         """
         print("=" * 80)
-        print("MasterGrader - سیستم جامع تصحیح و تشخیص تقلب")
+        print("MasterGrader - Automated C assignment grading and plagiarism detection")
         print("=" * 80)
-        print("\n[INFO] در حال بررسی تنظیمات...")
+        print("\n[INFO] Checking configuration...")
 
         # بررسی تنظیمات
         errors = config.Config.validate_config()
         if errors:
-            print("\n[-] خطاهای تنظیمات:")
+            print("\n[ERROR] Configuration errors:")
             for error in errors:
-                print(f"  • {error}")
+                print(f"  - {error}")
             return False
 
-        print("[+] تنظیمات معتبر است")
+        print("[+] Configuration is valid")
 
         # ایجاد پوشه‌های مورد نیاز
         config.Config.initialize_directories()
@@ -100,7 +100,7 @@ class MasterGrader:
             True اگر موفق بود
         """
         print("\n" + "=" * 80)
-        print("[STEP 1] استخراج بازگشتی فایل‌های ZIP (Sandbox)")
+        print("[STEP 1] Recursive extraction of ZIP archives (sandbox)")
         print("=" * 80)
 
         try:
@@ -116,16 +116,16 @@ class MasterGrader:
                     self.temp_dirs.append(temp_path)
 
             print(
-                f"\n[+] استخراج کامل شد: {len(self.temp_dirs)} پوشه موقت ایجاد شد"
+                f"\n[+] Extraction completed: {len(self.temp_dirs)} temporary folders created"
             )
             print(
-                f"[+] تعداد دانشجویان پردازش شده: {len(self.extraction_results)}"
+                f"[+] Number of processed students: {len(self.extraction_results)}"
             )
 
             return True
 
         except Exception as e:
-            print(f"\n[-] خطا در مرحله استخراج: {str(e)}")
+            print(f"\n[ERROR] Extraction step failed: {str(e)}")
             return False
 
     def step2_organization(self) -> bool:
@@ -136,7 +136,7 @@ class MasterGrader:
             True اگر موفق بود
         """
         print("\n" + "=" * 80)
-        print("[STEP 2] سازماندهی و نگاشت هوشمند فایل‌ها")
+        print("[STEP 2] Organizing and mapping files")
         print("=" * 80)
 
         try:
@@ -152,16 +152,16 @@ class MasterGrader:
             )
 
             print(
-                f"\n[+] سازماندهی کامل شد: {total_organized} فایل سازماندهی شد"
+                f"\n[+] Organization completed: {total_organized} files organized"
             )
             print(
-                f"[+] تعداد دانشجویان سازماندهی شده: {len(self.organization_results)}"
+                f"[+] Number of students organized: {len(self.organization_results)}"
             )
 
             return True
 
         except Exception as e:
-            print(f"\n[-] خطا در مرحله سازماندهی: {str(e)}")
+            print(f"\n[ERROR] Organization step failed: {str(e)}")
             return False
 
     def step3_plagiarism_detection(self) -> bool:
@@ -172,7 +172,7 @@ class MasterGrader:
             True اگر موفق بود
         """
         print("\n" + "=" * 80)
-        print("[STEP 3] تشخیص تقلب با الگوریتم توکن‌سازی")
+        print("[STEP 3] Plagiarism detection using tokenization")
         print("=" * 80)
 
         try:
@@ -185,13 +185,13 @@ class MasterGrader:
             )
 
             print(
-                f"\n[+] تشخیص تقلب کامل شد: {len(self.plagiarism_cases)} مورد شناسایی شد"
+                f"\n[+] Plagiarism detection completed: {len(self.plagiarism_cases)} cases detected"
             )
 
             return True
 
         except Exception as e:
-            print(f"\n[-] خطا در مرحله تشخیص تقلب: {str(e)}")
+            print(f"\n[ERROR] Plagiarism detection step failed: {str(e)}")
             return False
 
     def step4_reporting(self) -> bool:
@@ -213,7 +213,7 @@ class MasterGrader:
             return True
 
         except Exception as e:
-            print(f"\n[-] خطا در مرحله گزارش‌دهی: {str(e)}")
+            print(f"\n[ERROR] Reporting step failed: {str(e)}")
             return False
 
     def run(self) -> bool:
@@ -230,23 +230,23 @@ class MasterGrader:
         # مرحله 1: استخراج
         if not self.step1_extraction():
             print(
-                "\n[WARN] مرحله استخراج با خطا مواجه شد، اما ادامه می‌دهیم..."
+                "\n[WARN] Extraction step failed, continuing..."
             )
 
         # مرحله 2: سازماندهی
         if not self.step2_organization():
             print(
-                "\n[-] خطا: مرحله سازماندهی ضروری است. برنامه متوقف می‌شود."
+                "\n[ERROR] Organization step failed. The program will stop."
             )
             return False
 
         # مرحله 3: تشخیص تقلب
         if not self.step3_plagiarism_detection():
-            print("\n[WARN] مرحله تشخیص تقلب با خطا مواجه شد.")
+            print("\n[WARN] Plagiarism detection step failed.")
 
         # مرحله 4: گزارش‌دهی
         if not self.step4_reporting():
-            print("\n[WARN] مرحله گزارش‌دهی با خطا مواجه شد.")
+            print("\n[WARN] Reporting step failed.")
 
         # خلاصه نهایی
         self.print_final_summary()
@@ -259,7 +259,7 @@ class MasterGrader:
     def cleanup_temp_dirs(self):
         """پاکسازی پوشه‌های موقت"""
         print(
-            f"\n[INFO] در حال پاکسازی {len(self.temp_dirs)} پوشه موقت..."
+            f"\n[INFO] Cleaning up {len(self.temp_dirs)} temporary folders..."
         )
         for temp_dir in self.temp_dirs:
             if temp_dir and os.path.exists(temp_dir):
@@ -268,51 +268,51 @@ class MasterGrader:
                 except Exception:
                     # در صورت خطا در پاکسازی پوشه موقت، آن را نادیده می‌گیریم
                     pass
-        print("[+] پاکسازی کامل شد")
+        print("[+] Cleanup completed")
 
     def print_final_summary(self):
         """چاپ خلاصه نهایی"""
         print("\n" + "=" * 80)
-        print("[DONE] فرآیند کامل شد!")
+        print("[DONE] Processing finished!")
         print("=" * 80)
-        print(f"\n[SUMMARY] خلاصه:")
+        print("\n[SUMMARY] Summary:")
         print(
-            f"  • دانشجویان پردازش شده: {len(self.extraction_results)}"
+            f"  - Processed students: {len(self.extraction_results)}"
         )
         print(
-            "  • فایل‌های سازماندهی شده: "
+            "  - Organized files: "
             f"{sum(r.get('total_files', 0) for r in self.organization_results.values())}"
         )
         print(
-            f"  • موارد تقلب شناسایی شده: {len(self.plagiarism_cases)}"
+            f"  - Detected plagiarism cases: {len(self.plagiarism_cases)}"
         )
-        print(f"  • خطاها: {len(self.log_entries)}")
-        print(f"\n[OUTPUT] فایل‌های خروجی:")
+        print(f"  - Logged errors: {len(self.log_entries)}")
+        print("\n[OUTPUT] Output files:")
         print(
-            f"  • پوشه فایل‌های سازماندهی شده: {config.Config.OUTPUT_DIR}"
-        )
-        print(
-            f"  • گزارش CSV: {config.Config.get_report_file_path()}"
+            f"  - Organized submissions folder: {config.Config.OUTPUT_DIR}"
         )
         print(
-            "  • گزارش تفصیلی: "
+            f"  - CSV report: {config.Config.get_report_file_path()}"
+        )
+        print(
+            "  - Detailed text report: "
             f"{os.path.join(config.Config.OUTPUT_DIR, 'Detailed_Report.txt')}"
         )
         print(
-            f"  • فایل لاگ: {config.Config.get_log_file_path()}"
+            f"  - Log file: {config.Config.get_log_file_path()}"
         )
         print("\n" + "=" * 80)
 
 
 def parse_arguments():
-    """پارس کردن آرگومان‌های خط فرمان"""
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description=(
-            "MasterGrader - سیستم جامع تصحیح و تشخیص تقلب تمرینات C"
+            "MasterGrader - Automated C assignment grading and plagiarism detection"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-مثال‌ها:
+Examples:
   python main.py
   python main.py --input "C:/submissions" --output "C:/results"
   python main.py --input "C:/submissions" --threshold 90 --template "template.c"
@@ -324,7 +324,7 @@ def parse_arguments():
         "-i",
         type=str,
         default=None,
-        help=f"مسیر پوشه ورودی دانشجویان (پیش‌فرض: {config.Config.ROOT_DIR})",
+        help=f"Input root folder of student submissions (default: {config.Config.ROOT_DIR})",
     )
 
     parser.add_argument(
@@ -332,7 +332,7 @@ def parse_arguments():
         "-o",
         type=str,
         default=None,
-        help=f"مسیر پوشه خروجی (پیش‌فرض: {config.Config.OUTPUT_DIR})",
+        help=f"Output folder (default: {config.Config.OUTPUT_DIR})",
     )
 
     parser.add_argument(
@@ -341,7 +341,7 @@ def parse_arguments():
         type=float,
         default=None,
         help=(
-            "آستانه شباهت برای تشخیص تقلب (درصد، پیش‌فرض: "
+            "Similarity threshold for plagiarism detection (percent, default: "
             f"{config.Config.SIMILARITY_THRESHOLD})"
         ),
     )
@@ -351,7 +351,7 @@ def parse_arguments():
         "-T",
         type=str,
         default=None,
-        help="مسیر فایل کد قالب (برای حذف کدهای آماده استاد)",
+        help="Path to template C code file (to subtract instructor-provided code)",
     )
 
     parser.add_argument(
@@ -359,7 +359,7 @@ def parse_arguments():
         "-q",
         type=int,
         default=None,
-        help=f"تعداد سوالات (پیش‌فرض: {config.Config.NUM_QUESTIONS})",
+        help=f"Number of questions (default: {config.Config.NUM_QUESTIONS})",
     )
 
     return parser.parse_args()
@@ -386,19 +386,19 @@ def main():
         success = grader.run()
 
         if success:
-            print("\n[+] برنامه با موفقیت به پایان رسید!")
+            print("\n[+] Program finished successfully.")
             return 0
         else:
             print(
-                "\n[WARN] برنامه با خطا به پایان رسید. لطفاً لاگ‌ها را بررسی کنید."
+                "\n[WARN] Program finished with errors. Please check the logs."
             )
             return 1
 
     except KeyboardInterrupt:
-        print("\n\n[WARN] برنامه توسط کاربر متوقف شد.")
+        print("\n\n[WARN] Program interrupted by user.")
         return 1
     except Exception as e:
-        print(f"\n[-] خطای غیرمنتظره: {str(e)}")
+        print(f"\n[ERROR] Unexpected error: {str(e)}")
         import traceback
 
         traceback.print_exc()

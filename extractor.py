@@ -93,7 +93,7 @@ class ZipExtractor:
         """
         if depth > config.Config.MAX_EXTRACTION_DEPTH:
             self._log_error(
-                f"حداکثر عمق استخراج ({config.Config.MAX_EXTRACTION_DEPTH}) رسید",
+                f"Maximum extraction depth ({config.Config.MAX_EXTRACTION_DEPTH}) reached",
                 student_id,
                 zip_path,
             )
@@ -105,7 +105,7 @@ class ZipExtractor:
             return True
 
         if not os.path.exists(zip_path):
-            self._log_error("فایل فشرده وجود ندارد", student_id, zip_path)
+            self._log_error("Archive file does not exist", student_id, zip_path)
             return False
 
         try:
@@ -121,7 +121,7 @@ class ZipExtractor:
                         zip_ref.testzip()
                     except Exception as e:
                         self._log_error(
-                            f"فایل ZIP خراب است: {str(e)}",
+                            f"ZIP file is corrupted: {str(e)}",
                             student_id,
                             zip_path,
                         )
@@ -192,7 +192,7 @@ class ZipExtractor:
                         except Exception as e:
                             # در صورت خطا در استخراج یک فایل، ادامه می‌دهیم
                             self._log_error(
-                                f"خطا در استخراج فایل {member}: {str(e)}",
+                                f"Error extracting file {member}: {str(e)}",
                                 student_id,
                                 zip_path,
                             )
@@ -212,7 +212,7 @@ class ZipExtractor:
                         return True
                     except Exception as e:
                         self._log_error(
-                            f"خطا در استخراج RAR با patoolib: {str(e)}",
+                            f"Error extracting RAR with patoolib: {str(e)}",
                             student_id,
                             zip_path,
                         )
@@ -225,15 +225,15 @@ class ZipExtractor:
                         return True
                     except Exception as e:
                         self._log_error(
-                            f"خطا در استخراج RAR با rarfile: {str(e)}",
+                            f"Error extracting RAR with rarfile: {str(e)}",
                             student_id,
                             zip_path,
                         )
                         return False
                 else:
                     self._log_error(
-                        "فایل RAR پشتیبانی نمی‌شود. "
-                        "لطفاً 'patoolib' یا 'rarfile' را نصب کنید: pip install patoolib",
+                        "RAR files are not supported. "
+                        "Please install 'patoolib' or 'rarfile': pip install patoolib",
                         student_id,
                         zip_path,
                     )
@@ -250,15 +250,15 @@ class ZipExtractor:
                         return True
                     except Exception as e:
                         self._log_error(
-                            f"خطا در استخراج 7Z: {str(e)}",
+                            f"Error extracting 7Z: {str(e)}",
                             student_id,
                             zip_path,
                         )
                         return False
                 else:
                     self._log_error(
-                        "فایل 7Z پشتیبانی نمی‌شود. "
-                        "لطفاً 'patoolib' را نصب کنید: pip install patoolib",
+                        "7Z files are not supported. "
+                        "Please install 'patoolib': pip install patoolib",
                         student_id,
                         zip_path,
                     )
@@ -266,28 +266,28 @@ class ZipExtractor:
 
             else:
                 self._log_error(
-                    f"نوع فایل پشتیبانی نمی‌شود: {file_ext}",
+                    f"Unsupported archive file type: {file_ext}",
                     student_id,
                     zip_path,
                 )
                 return False
 
         except zipfile.BadZipFile:
-            self._log_error("فایل ZIP معتبر نیست", student_id, zip_path)
+            self._log_error("Invalid ZIP file", student_id, zip_path)
             return False
         except RuntimeError as e:
             # احتمالاً فایل رمز دارد
             msg = str(e).lower()
             if "password" in msg or "encrypted" in msg:
-                self._log_error("فایل ZIP رمز دارد", student_id, zip_path)
+                self._log_error("ZIP file is password-protected", student_id, zip_path)
             else:
                 self._log_error(
-                    f"خطای استخراج: {str(e)}", student_id, zip_path
+                    f"Extraction error: {str(e)}", student_id, zip_path
                 )
             return False
         except Exception as e:
             self._log_error(
-                f"خطای غیرمنتظره در استخراج: {str(e)}",
+                f"Unexpected extraction error: {str(e)}",
                 student_id,
                 zip_path,
             )
@@ -360,20 +360,20 @@ class ZipExtractor:
 
                             if not extract_success:
                                 self._log_error(
-                                    f"خطا در استخراج {file_name}",
+                                    f"Error extracting {file_name}",
                                     student_id,
                                     file_path,
                                 )
                             elif len(files_after_extract) <= 1:
                                 # اگر فقط فایل ZIP باقی مانده (یا هیچ فایلی نیست)
                                 self._log_error(
-                                    f"فایل فشرده استخراج نشد یا خالی است: {file_name}",
+                                    f"Archive was not extracted or is empty: {file_name}",
                                     student_id,
                                     file_path,
                                 )
                         except Exception as e:
                             self._log_error(
-                                f"خطا در کپی/استخراج {file_name}: {str(e)}",
+                                f"Error copying/extracting {file_name}: {str(e)}",
                                 student_id,
                                 file_path,
                             )
@@ -409,14 +409,14 @@ class ZipExtractor:
                                 c_files_copied += 1
                             except Exception as e:
                                 self._log_error(
-                                    f"خطا در کپی فایل {file_name}: {str(e)}",
+                                    f"Error copying file {file_name}: {str(e)}",
                                     student_id,
                                     file_path,
                                 )
 
                 if c_files_copied > 0:
                     print(
-                        f"    [INFO] {c_files_copied} فایل C کپی شد (بدون فایل فشرده)"
+                        f"    [INFO] {c_files_copied} C source files copied (no archive file)"
                     )
 
             # بررسی اینکه آیا فایلی در پوشه موقت وجود دارد
@@ -427,7 +427,7 @@ class ZipExtractor:
 
             if not files_in_temp:
                 print(
-                    f"    [WARN] هشدار: پوشه موقت خالی است برای دانشجو {student_id}"
+                    f"    [WARN] Temporary folder is empty for student {student_id}"
                 )
             else:
                 c_files_count = sum(
@@ -438,15 +438,15 @@ class ZipExtractor:
                 )
                 if c_files_count == 0:
                     print(
-                        "    [WARN] هشدار: هیچ فایل C در پوشه موقت پیدا نشد "
-                        f"(تعداد کل فایل‌ها: {len(files_in_temp)})"
+                        "    [WARN] No C source files found in temporary folder "
+                        f"(total files: {len(files_in_temp)})"
                     )
 
             return student_temp_dir
 
         except Exception as e:
             self._log_error(
-                f"خطا در استخراج دانشجو {student_id}: {str(e)}",
+                f"Error extracting student {student_id}: {str(e)}",
                 student_id,
                 student_dir,
             )
@@ -490,7 +490,7 @@ def extract_student_submissions(
     results: Dict[str, Dict] = {}
 
     if not os.path.exists(root_dir):
-        print(f"[WARN] هشدار: مسیر ورودی وجود ندارد: {root_dir}")
+        print(f"[WARN] Input path does not exist: {root_dir}")
         return results
 
     # پیمایش پوشه‌های دانشجویان
@@ -499,7 +499,7 @@ def extract_student_submissions(
 
         if os.path.isdir(student_path):
             student_id = item
-            print(f"[INFO] در حال استخراج فایل‌های {student_id}...")
+            print(f"[INFO] Extracting files for {student_id}...")
 
             temp_dir = extractor.extract_student_zips_to_temp(
                 student_path, student_id
@@ -511,13 +511,13 @@ def extract_student_submissions(
                     "original_path": student_path,  # مسیر اصلی
                     "failed": extractor.get_failed_extractions(),
                 }
-                print("  [+] فایل‌ها در پوشه موقت استخراج شدند")
+                print("  [+] Files were extracted to the temporary folder")
             else:
                 results[student_id] = {
                     "temp_path": None,
                     "original_path": student_path,
                     "failed": extractor.get_failed_extractions(),
                 }
-                print("  [WARN] خطا در استخراج")
+                print("  [WARN] Extraction failed")
 
     return results

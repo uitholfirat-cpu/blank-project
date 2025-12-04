@@ -166,7 +166,7 @@ class PlagiarismDetector:
         total_comparisons = len(student_ids) * (len(student_ids) - 1) // 2
 
         print(
-            f"  [INFO] در حال مقایسه {total_comparisons} جفت فایل برای سوال {question_num}..."
+            f"  [INFO] Comparing {total_comparisons} file pairs for question {question_num}..."
         )
 
         comparison_count = 0
@@ -195,7 +195,7 @@ class PlagiarismDetector:
                 comparison_count += 1
                 if comparison_count and comparison_count % 50 == 0:
                     print(
-                        f"    [+] {comparison_count}/{total_comparisons} مقایسه انجام شد..."
+                        f"    [+] {comparison_count}/{total_comparisons} comparisons completed..."
                     )
 
         return plagiarism_cases
@@ -215,14 +215,14 @@ class PlagiarismDetector:
         all_plagiarism_cases: List[Dict] = []
 
         print("\n" + "=" * 60)
-        print("[STEP] مرحله تشخیص تقلب")
+        print("[STEP] Plagiarism detection step")
         print("=" * 60)
 
         for question_num in range(1, config.Config.NUM_QUESTIONS + 1):
             question_dir = os.path.join(output_dir, f"Q{question_num}")
 
             if os.path.exists(question_dir):
-                print(f"\n[INFO] بررسی سوال {question_num}...")
+                print(f"\n[INFO] Checking question {question_num}...")
                 cases = self.detect_plagiarism_in_question(
                     question_dir, question_num
                 )
@@ -230,10 +230,10 @@ class PlagiarismDetector:
 
                 if cases:
                     print(
-                        f"  [WARN] {len(cases)} مورد تقلب احتمالی شناسایی شد"
+                        f"  [WARN] {len(cases)} potential plagiarism cases detected"
                     )
                 else:
-                    print("  [+] هیچ مورد تقلبی شناسایی نشد")
+                    print("  [+] No plagiarism cases detected")
 
         return all_plagiarism_cases
 
@@ -389,7 +389,7 @@ def load_template_tokens(template_path: Optional[str]) -> Optional[str]:
     try:
         return tokenizer.tokenize_file(template_path)
     except Exception as e:
-        print(f"[WARN] خطا در بارگذاری فایل قالب: {str(e)}")
+        print(f"[WARN] Error loading template file: {str(e)}")
         return None
 
 
@@ -409,7 +409,7 @@ def detect_plagiarism(
     # بارگذاری توکن‌های قالب
     template_tokens = load_template_tokens(template_path)
     if template_tokens:
-        print(f"[+] فایل قالب بارگذاری شد: {template_path}")
+        print(f"[+] Template file loaded: {template_path}")
 
     detector = PlagiarismDetector(template_tokens=template_tokens)
     plagiarism_cases = detector.detect_plagiarism_all_questions(output_dir)
@@ -418,12 +418,12 @@ def detect_plagiarism(
     # نمایش اطلاعات خوشه‌ها
     if statistics["clusters"]:
         print(
-            f"\n[INFO] {len(statistics['clusters'])} خوشه تقلب شناسایی شد:"
+            f"\n[INFO] {len(statistics['clusters'])} plagiarism clusters detected:"
         )
         for cluster in statistics["clusters"]:
             print(
-                f"  • Cluster #{cluster['cluster_id']}: "
-                f"{cluster['size']} دانشجو - {', '.join(cluster['students'])}"
+                f"  - Cluster #{cluster['cluster_id']}: "
+                f"{cluster['size']} students - {', '.join(cluster['students'])}"
             )
 
     return plagiarism_cases, statistics

@@ -279,7 +279,7 @@ def tokenize_file(file_path: str) -> str:
         tokenizer = CTokenizer()
         return tokenizer.tokenize(code)
     except Exception as e:
-        print(f"[WARN] خطا در خواندن فایل {file_path}: {str(e)}")
+        print(f"[WARN] Error reading file {file_path}: {str(e)}")
         return ""
 
 

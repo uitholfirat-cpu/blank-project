@@ -177,13 +177,13 @@ class FileMapper:
 
             if all_files:
                 print(
-                    f"    [WARN] هیچ فایل C پیدا نشد. "
-                    f"فایل‌های موجود: {len(all_files)} فایل"
+                    f"    [WARN] No C source files found. "
+                    f"Existing files: {len(all_files)} file(s)"
                 )
                 for f in all_files[:5]:
                     print(f"      - {os.path.basename(f)}")
             else:
-                print("    [WARN] پوشه خالی است یا فایلی وجود ندارد")
+                print("    [WARN] Folder is empty or contains no files")
 
         # نگاشت هر فایل
         for file_path in c_files:
@@ -212,8 +212,8 @@ class FileMapper:
                     )
 
             print(
-                f"    [INFO] استراتژی Fallback: "
-                f"{len(unmapped_files)} فایل به ترتیب حروف الفبا نگاشت شد"
+                f"    [INFO] Fallback strategy: "
+                f"{len(unmapped_files)} files mapped in alphabetical order"
             )
 
         # استراتژی Fallback 2
@@ -230,9 +230,9 @@ class FileMapper:
                     )
 
             print(
-                f"    [INFO] استراتژی Fallback 2: "
-                f"{len(unmapped_files)} فایل نگاشت شد "
-                f"(کمتر از {config.Config.NUM_QUESTIONS} فایل)"
+                f"    [INFO] Fallback strategy 2: "
+                f"{len(unmapped_files)} file(s) mapped "
+                f"(fewer than {config.Config.NUM_QUESTIONS} files)"
             )
 
         # انتخاب بهترین فایل برای هر سوال (بالاترین اطمینان)
@@ -305,7 +305,7 @@ class FileMapper:
                 organized["total_files"] += 1
             except Exception as e:
                 print(
-                    f"  [WARN] خطا در کپی فایل {source_file}: {str(e)}"
+                    f"  [WARN] Error copying file {source_file}: {str(e)}"
                 )
 
         return organized
@@ -328,14 +328,14 @@ def organize_all_students(
     results: Dict[str, Dict] = {}
 
     print("\n" + "=" * 60)
-    print("[STEP 2] مرحله سازماندهی فایل‌ها")
+    print("[STEP 2] File organization step")
     print("=" * 60)
 
     for student_id, extraction_data in extraction_results.items():
         temp_path = extraction_data.get("temp_path")
 
         if not temp_path or not os.path.exists(temp_path):
-            print(f"\n[WARN] دانشجو {student_id}: پوشه موقت وجود ندارد")
+            print(f"\n[WARN] Student {student_id}: temporary folder does not exist")
             results[student_id] = {
                 "student_id": student_id,
                 "mapped_files": {},
@@ -344,8 +344,8 @@ def organize_all_students(
             }
             continue
 
-        print(f"\n[INFO] در حال پردازش {student_id}...")
-        print(f"  [INFO] مسیر پوشه موقت: {temp_path}")
+        print(f"\n[INFO] Processing {student_id}...")
+        print(f"  [INFO] Temporary folder path: {temp_path}")
 
         organized = mapper.organize_student_files(
             temp_path, student_id, output_dir
@@ -353,11 +353,11 @@ def organize_all_students(
         results[student_id] = organized
 
         mapped_count = len(organized["mapped_files"])
-        print(f"  [+] {mapped_count} فایل سازماندهی شد")
+        print(f"  [+] {mapped_count} files organized")
 
         if organized.get("unmapped_files"):
             print(
-                f"  [WARN] {len(organized['unmapped_files'])} فایل نگاشت نشد"
+                f"  [WARN] {len(organized['unmapped_files'])} files were not mapped"
             )
 
     return results
