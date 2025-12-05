@@ -24,9 +24,9 @@ export default function RootLayout({
         <ThemeProvider>
           <SettingsProvider>
             <ReportProvider>
-              <div className="app-main">
+              <div className="flex min-h-screen flex-col md:flex-row">
                 <Sidebar />
-                <div className="app-content">
+                <div className="flex min-h-screen flex-1 flex-col">
                   <Topbar />
                   <main className="flex-1 px-4 pb-8 pt-4 md:px-6 md:pt-6">
                     {children}

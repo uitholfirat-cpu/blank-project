@@ -18,9 +18,6 @@ type PipelineStep =
   | "analyzing"
   | "done";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
 const stepOrder: PipelineStep[] = [
   "uploading",
   "extracting",
@@ -89,8 +86,13 @@ export function UploadDropzone() {
         ignore_variable_names: settings.ignoreVariableNames ? "true" : "false"
       });
 
+      const uploadUrl =
+        process.env.NODE_ENV === "development"
+          ? `http://127.0.0.1:8000/upload?${query.toString()}`
+          : `/upload?${query.toString()}`;
+
       try {
-        const response = await fetch(`/upload?${query.toString()}`, {
+        const response = await fetch(uploadUrl, {
           method: "POST",
           body: formData
         });
