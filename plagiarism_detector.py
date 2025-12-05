@@ -96,7 +96,7 @@ class PlagiarismDetector:
 
             # بررسی تعداد توکن (بهینه‌سازی: قبل از توکن‌سازی کامل)
             token_count = self.tokenizer.get_token_count(code, mode=self.mode)
-            if token_count &lt; config.Config.MIN_TOKEN_COUNT:
+            if token_count < config.Config.MIN_TOKEN_COUNT:
                 return False, None
 
             # توکن‌سازی با درنظرگرفتن حالت انتخاب‌شده
