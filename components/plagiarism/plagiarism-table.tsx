@@ -273,7 +273,7 @@ export function PlagiarismTable({ cases: casesProp }: PlagiarismTableProps) {
         </div>
         <footer className="flex items-center justify-between border-t border-border/80 px-4 py-2 text-[0.7rem] text-muted-foreground">
           <span>
-            Threshold: <span className="font-semibold">{threshold}%</span> &mdash>{" "}
+            Threshold: <span className="font-semibold">{threshold}%</span> &mdash;{" "}
             adjusted in{" "}
             <span className="underline underline-offset-2">Settings</span>.
           </span>
