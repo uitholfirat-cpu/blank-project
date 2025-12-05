@@ -39,11 +39,19 @@ export type OriginalityStatItem = {
   value: number;
 };
 
+export type ReportFiles = {
+  csv?: string;
+  detailed?: string;
+  clusters?: string;
+};
+
 export type ReportData = {
   plagiarismCases: PlagiarismCase[];
   dashboardStats: DashboardStats;
   gradeDistribution: GradeDistributionItem[];
   originalityStats: OriginalityStatItem[];
+  processingErrors?: string[];
+  reportFiles?: ReportFiles;
 };
 
 type ReportContextValue = {
