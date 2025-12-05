@@ -309,8 +309,8 @@ export function UploadDropzone() {
                       key={step}
                       className={cn(
                         "flex items-center gap-1.5",
-                        index &gt; 0 && "pl-2",
-                        index &gt; 0 && "border-l border-border dark:border-border"
+                        index > 0 && "pl-2",
+                        index > 0 && "border-l border-border dark:border-border"
                       )}
                     >
                       <span
