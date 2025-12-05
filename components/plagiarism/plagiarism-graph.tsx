@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -12,6 +12,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 
 import type { PlagiarismCase } from "@/components/report-context";
+import { Slider } from "@/components/ui/slider";
 
 type PlagiarismGraphProps = {
   cases: PlagiarismCase[];
@@ -27,11 +28,16 @@ const clusterColors = [
 ];
 
 export function PlagiarismGraph({ cases }: PlagiarismGraphProps) {
-  const { nodes, edges } = useMemo(() => buildGraph(cases), [cases]);
+  const [visualThreshold, setVisualThreshold] = useState<number>(90);
+
+  const { nodes, edges } = useMemo(
+    () => buildGraph(cases, visualThreshold),
+    [cases, visualThreshold]
+  );
 
   return (
     <section className="mt-6 space-y-3">
-      <header className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+      <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">
             Cheating rings (graph view)
@@ -39,6 +45,30 @@ export function PlagiarismGraph({ cases }: PlagiarismGraphProps) {
           <p className="text-xs text-muted-foreground">
             Nodes represent students. Edges represent highly similar submissions.
             Central nodes with many edges are likely sources.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1 text-xs sm:items-end">
+          <div className="flex w-full items-center justify-between gap-3 sm:w-64">
+            <span className="font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Visual filter
+            </span>
+            <span className="tabular-nums text-[0.7rem] text-muted-foreground">
+              ≥ {visualThreshold.toFixed(0)}%
+            </span>
+          </div>
+          <Slider
+            className="w-full sm:w-64"
+            min={50}
+            max={100}
+            step={1}
+            value={[visualThreshold]}
+            onValueChange={([value]) =>
+              setVisualThreshold(value ?? visualThreshold)
+            }
+          />
+          <p className="text-[0.68rem] text-muted-foreground">
+            Only render connections at or above this similarity to keep the graph
+            responsive on large cohorts.
           </p>
         </div>
       </header>
@@ -78,13 +108,20 @@ export function PlagiarismGraph({ cases }: PlagiarismGraphProps) {
   );
 }
 
-function buildGraph(cases: PlagiarismCase[]): {
+function buildGraph(
+  cases: PlagiarismCase[],
+  minSimilarity: number
+): {
   nodes: Node[];
   edges: Edge[];
 } {
+  const filteredCases = cases.filter(
+    (c) => c.similarity >= minSimilarity
+  );
+
   const clusters = new Map<string, Set<string>>();
 
-  for (const c of cases) {
+  for (const c of filteredCases) {
     if (!clusters.has(c.clusterId)) {
       clusters.set(c.clusterId, new Set());
     }
@@ -142,7 +179,7 @@ function buildGraph(cases: PlagiarismCase[]): {
     });
   });
 
-  for (const c of cases) {
+  for (const c of filteredCases) {
     const sourceId = studentNodeId.get(`${c.clusterId}:${c.studentA}`);
     const targetId = studentNodeId.get(`${c.clusterId}:${c.studentB}`);
     if (!sourceId || !targetId) continue;

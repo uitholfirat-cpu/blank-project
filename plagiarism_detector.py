@@ -23,16 +23,25 @@ except ImportError:
 class PlagiarismDetector:
     """کلاس تشخیص تقلب"""
 
-    def __init__(self, template_tokens: Optional[str] = None):
+    def __init__(
+        self,
+        template_tokens: Optional[str] = None,
+        ignore_variables: bool = True,
+    ):
         """
         Args:
             template_tokens: رشته توکن‌های کد قالب (اختیاری)
+            ignore_variables: اگر True باشد، نام متغیرها و شناسه‌ها در مقایسه
+                نادیده گرفته شده و به صورت ساختاری (ID) بررسی می‌شوند. اگر
+                False باشد، تشخیص فقط روی کپی‌های مستقیم حساس است.
         """
         self.tokenizer = tokenizer.CTokenizer()
         # کش برای محاسبات تکراری
         self.similarity_cache: Dict[Tuple[str, str], float] = {}
         # توکن‌های کد قالب
         self.template_tokens = template_tokens
+        # تنظیم حالت هوشمند/سخت‌گیرانه برای این instance
+        self.ignore_variables = ignore_variables
 
     def _calculate_similarity(self, token_str1: str, token_str2: str) -> float:
         """
@@ -84,12 +93,18 @@ class PlagiarismDetector:
                 code = f.read()
 
             # بررسی تعداد توکن (بهینه‌سازی: قبل از توکن‌سازی کامل)
-            token_count = self.tokenizer.get_token_count(code)
+            # تعداد توکن‌ها مستقل از حالت ignore_variables است، اما برای
+            # شفافیت از همان interface استفاده می‌کنیم.
+            token_count = self.tokenizer.get_token_count(
+                code, ignore_variables=self.ignore_variables
+            )
             if token_count < config.Config.MIN_TOKEN_COUNT:
                 return False, None
 
-            # توکن‌سازی
-            token_string = self.tokenizer.tokenize(code)
+            # توکن‌سازی با درنظرگرفتن حالت هوشمند/سخت‌گیرانه
+            token_string = self.tokenizer.tokenize(
+                code, ignore_variables=self.ignore_variables
+            )
 
             # حذف توکن‌های قالب (Template Subtraction)
             if self.template_tokens and token_string:
@@ -373,12 +388,16 @@ class PlagiarismDetector:
         return stats
 
 
-def load_template_tokens(template_path: Optional[str]) -> Optional[str]:
+def load_template_tokens(
+    template_path: Optional[str],
+    ignore_variables: bool = True,
+) -> Optional[str]:
     """
     بارگذاری و توکن‌سازی فایل قالب
 
     Args:
         template_path: مسیر فایل قالب
+        ignore_variables: همان حالت هوشمند/سخت‌گیرانه که در تشخیص استفاده می‌شود
 
     Returns:
         رشته توکن‌های قالب یا None
@@ -387,14 +406,18 @@ def load_template_tokens(template_path: Optional[str]) -> Optional[str]:
         return None
 
     try:
-        return tokenizer.tokenize_file(template_path)
+        return tokenizer.tokenize_file(
+            template_path, ignore_variables=ignore_variables
+        )
     except Exception as e:
         print(f"[WARN] Error loading template file: {str(e)}")
         return None
 
 
 def detect_plagiarism(
-    output_dir: str, template_path: Optional[str] = None
+    output_dir: str,
+    template_path: Optional[str] = None,
+    ignore_variables: bool = True,
 ) -> Tuple[List[Dict], Dict]:
     """
     تابع اصلی برای تشخیص تقلب
@@ -402,16 +425,24 @@ def detect_plagiarism(
     Args:
         output_dir: مسیر پوشه خروجی
         template_path: مسیر فایل قالب (اختیاری)
+        ignore_variables: اگر True باشد، موتور در حالت هوشمند (Smart) کار می‌کند
+            و نام متغیرها نادیده گرفته می‌شود. اگر False باشد، در حالت
+            سخت‌گیرانه (Strict) فقط کپی‌های مستقیم را شکار می‌کند.
 
     Returns:
         تاپل (لیست موارد تقلب, آمار)
     """
-    # بارگذاری توکن‌های قالب
-    template_tokens = load_template_tokens(template_path)
+    # بارگذاری توکن‌های قالب بر اساس همان حالت توکن‌سازی
+    template_tokens = load_template_tokens(
+        template_path, ignore_variables=ignore_variables
+    )
     if template_tokens:
         print(f"[+] Template file loaded: {template_path}")
 
-    detector = PlagiarismDetector(template_tokens=template_tokens)
+    detector = PlagiarismDetector(
+        template_tokens=template_tokens,
+        ignore_variables=ignore_variables,
+    )
     plagiarism_cases = detector.detect_plagiarism_all_questions(output_dir)
     statistics = detector.get_statistics(plagiarism_cases)
 

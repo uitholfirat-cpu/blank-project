@@ -84,9 +84,15 @@ class CTokenizer:
         """بررسی اینکه آیا کاراکتر یک عملگر است"""
         return char in self.operators
 
-    def _tokenize_code(self, code: str) -> List[str]:
+    def _tokenize_code(self, code: str, ignore_variables: bool = True) -> List[str]:
         """
         تبدیل کد به لیست توکن‌ها
+
+        Args:
+            code: کد C
+            ignore_variables: اگر True باشد، تمام شناسه‌های غیرکلیدی به «ID» نگاشت می‌شوند
+                (حالت هوشمند/ساختاری). اگر False باشد نام اصلی شناسه‌ها حفظ می‌شود
+                (حالت سخت‌گیرانه).
         """
         tokens: List[str] = []
         i = 0
@@ -134,7 +140,8 @@ class CTokenizer:
                 if self._is_keyword(word):
                     tokens.append(word.upper())
                 else:
-                    if config.Config.IGNORE_VARIABLES:
+                    # رفتار قابل تنظیم: حالت هوشمند (ساختاری) در برابر حالت سخت‌گیرانه
+                    if ignore_variables:
                         tokens.append("ID")
                     else:
                         tokens.append(word)
@@ -229,9 +236,15 @@ class CTokenizer:
             # در صورت خطا، کد اصلی را برمی‌گردانیم
             return code
 
-    def tokenize(self, code: str) -> str:
+    def tokenize(self, code: str, ignore_variables: bool = True) -> str:
         """
         توکن‌سازی کامل کد C
+
+        Args:
+            code: کد منبع C
+            ignore_variables: اگر True باشد، شناسه‌های غیرکلیدی به «ID» نگاشت می‌شوند
+                (حالت هوشمند/ساختاری). اگر False باشد نام اصلی شناسه‌ها حفظ می‌شود
+                (حالت سخت‌گیرانه).
         """
         if not code or not code.strip():
             return ""
@@ -249,52 +262,70 @@ class CTokenizer:
         code = self._normalize_whitespace(code)
 
         # مرحله 5: توکن‌سازی
-        tokens = self._tokenize_code(code)
+        tokens = self._tokenize_code(code, ignore_variables=ignore_variables)
 
         # مرحله 6: تبدیل به رشته (بدون فاصله برای مقایسه دقیق‌تر)
         token_string = "".join(tokens)
 
         return token_string
 
-    def get_token_count(self, code: str) -> int:
+    def get_token_count(self, code: str, ignore_variables: bool = True) -> int:
         """
         شمارش تعداد توکن‌ها
+
+        Args:
+            code: کد C
+            ignore_variables: همان پارامتر حالت هوشمند/سخت‌گیرانه در tokenize
         """
-        token_string = self.tokenize(code)
+        token_string = self.tokenize(code, ignore_variables=ignore_variables)
         return len(token_string)
 
-    def is_code_valid_for_plagiarism_check(self, code: str) -> bool:
+    def is_code_valid_for_plagiarism_check(
+        self, code: str, ignore_variables: bool = True
+    ) -> bool:
         """
         بررسی اینکه آیا کد برای بررسی تقلب معتبر است
+
+        Args:
+            code: کد C
+            ignore_variables: همان پارامتر حالت هوشمند/سخت‌گیرانه در tokenize
         """
-        token_count = self.get_token_count(code)
+        token_count = self.get_token_count(code, ignore_variables=ignore_variables)
         return token_count >= config.Config.MIN_TOKEN_COUNT
 
 
-def tokenize_file(file_path: str) -> str:
+def tokenize_file(file_path: str, ignore_variables: bool = True) -> str:
     """
     توکن‌سازی یک فایل C
+
+    Args:
+        file_path: مسیر فایل
+        ignore_variables: اگر True باشد شناسه‌های غیرکلیدی به «ID» نگاشت می‌شوند
     """
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
 
         tokenizer = CTokenizer()
-        return tokenizer.tokenize(code)
+        return tokenizer.tokenize(code, ignore_variables=ignore_variables)
     except Exception as e:
         print(f"[WARN] Error reading file {file_path}: {str(e)}")
         return ""
 
 
-def get_token_count_from_file(file_path: str) -> int:
+def get_token_count_from_file(file_path: str, ignore_variables: bool = True) -> int:
     """
     شمارش توکن‌های یک فایل
+
+    Args:
+        file_path: مسیر فایل
+        ignore_variables: همان پارامتر حالت هوشمند/سخت‌گیرانه در tokenize
     """
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
 
         tokenizer = CTokenizer()
-        return tokenizer.get_token_count(code)
+        return tokenizer.get_token_count(code, ignore_variables=ignore_variables)
     except Exception:
         return 0
