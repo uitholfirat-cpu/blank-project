@@ -21,9 +21,11 @@ type DiffViewerProps = {
   onBack?: () => void;
 };
 
+type LineMatchKind = "none" | "exact" | "structural";
+
 type LineMeta = {
   isTemplate: boolean;
-  isMatching: boolean;
+  matchKind: LineMatchKind;
 };
 
 type SideMeta = LineMeta[];
@@ -126,6 +128,30 @@ export function DiffViewer({ pair, template, onBack }: DiffViewerProps) {
         </div>
       </header>
 
+      <div className="flex flex-wrap items-center gap-3 text-[0.7rem] text-muted-foreground">
+        <div className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-flex h-3 w-3 rounded-[3px] bg-emerald-500"
+            aria-hidden="true"
+          />
+          <span>🟩 Exact copy (character-for-character)</span>
+        </div>
+        <div className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-flex h-3 w-3 rounded-[3px] bg-amber-400"
+            aria-hidden="true"
+          />
+          <span>🟨 Renamed variables / whitespace (structural)</span>
+        </div>
+        <div className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-flex h-3 w-3 rounded-[3px] border border-border bg-background"
+            aria-hidden="true"
+          />
+          <span>⬜ Original or unmatched code</span>
+        </div>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <CodePane
           title={`Student A – ${pair.studentA}`}
@@ -180,7 +206,7 @@ function CodePane({
           </span>
         </div>
       </header>
-      <div className="relative max-h-[520px] overflow-auto bg-muted/30 dark:bg-slate-950">
+      <div className="relative max-h-[520px] overflow-auto bg-muted/30">
         {/* تغییر ۳: حذف {...defaultProps} */}
         <Highlight theme={theme} code={code} language={cLanguage}>
           {({ className, style, tokens, getLineProps, getTokenProps }) => (
@@ -192,13 +218,18 @@ function CodePane({
               style={style}
             >
               {tokens.map((line, i) => {
-                const lineMeta = meta[i] ?? {
-                  isMatching: false,
-                  isTemplate: false
-                };
+                const lineMeta =
+                  meta[i] ??
+                  ({
+                    isTemplate: false,
+                    matchKind: "none"
+                  } as LineMeta);
 
                 const isTemplateLine = lineMeta.isTemplate;
-                const isMatching = lineMeta.isMatching;
+                const matchKind = lineMeta.matchKind ?? "none";
+                const isExactMatch = matchKind === "exact";
+                const isStructuralMatch = matchKind === "structural";
+                const hasMatch = isExactMatch || isStructuralMatch;
 
                 return (
                   <div
@@ -206,15 +237,14 @@ function CodePane({
                     {...getLineProps({ line, key: i })}
                     className={cn(
                       "flex border-l-2 border-transparent px-2 py-[1px]",
-                      isTemplateLine &&
-                        dimTemplate &&
-                        "opacity-60 bg-muted/40 dark:bg-slate-900/80",
-                      isMatching &&
-                        highlightMatches &&
-                        "border-emerald-500/70 bg-green-200/50 dark:bg-emerald-500/20",
-                      !isTemplateLine &&
-                        !isMatching &&
-                        "hover:bg-muted/40 dark:hover:bg-slate-900/70"
+                      isTemplateLine && dimTemplate && "opacity-60 bg-muted/40",
+                      highlightMatches &&
+                        isExactMatch &&
+                        "border-emerald-500/70 bg-emerald-500/10",
+                      highlightMatches &&
+                        isStructuralMatch &&
+                        "border-amber-500/70 bg-amber-500/10",
+                      !isTemplateLine && !hasMatch && "hover:bg-muted/40"
                     )}
                   >
                     <span className="mr-3 w-10 select-none text-right text-[0.65rem] text-muted-foreground">
@@ -227,9 +257,12 @@ function CodePane({
                           {...getTokenProps({ token, key })}
                           className={cn(
                             "transition-colors",
-                            isMatching &&
-                              highlightMatches &&
+                            highlightMatches &&
+                              isExactMatch &&
                               "text-emerald-800 dark:text-emerald-200",
+                            highlightMatches &&
+                              isStructuralMatch &&
+                              "text-amber-800 dark:text-amber-200",
                             isTemplateLine &&
                               dimTemplate &&
                               "text-muted-foreground"
@@ -268,32 +301,57 @@ function computeDiffMetadata(
   const linesA = codeA.split("\n");
   const linesB = codeB.split("\n");
 
-  const normalizedB = new Set(
-    linesB
-      .map((line) => normalizeLine(line, opts))
-      .filter((line) => line.length > 0)
+  const rawSetA = new Set(linesA.filter((line) => line.trim().length > 0));
+  const rawSetB = new Set(linesB.filter((line) => line.trim().length > 0));
+
+  const normalizedLinesA = linesA.map((line) => normalizeLine(line, opts));
+  const normalizedLinesB = linesB.map((line) => normalizeLine(line, opts));
+
+  const normalizedSetA = new Set(
+    normalizedLinesA.filter((line) => line.length > 0)
+  );
+  const normalizedSetB = new Set(
+    normalizedLinesB.filter((line) => line.length > 0)
   );
 
-  const normalizedA = new Set(
-    linesA
-      .map((line) => normalizeLine(line, opts))
-      .filter((line) => line.length > 0)
-  );
+  const leftMeta: SideMeta = linesA.map((line, index) => {
+    const trimmed = line.trim();
+    const isTemplate = trimmed.length > 0 && templateLines.has(trimmed);
 
-  const leftMeta: SideMeta = linesA.map((line) => {
-    const normalized = normalizeLine(line, opts);
-    const isTemplate = templateLines.has(line.trim());
-    const isMatching =
-      !isTemplate && normalized.length > 0 && normalizedB.has(normalized);
-    return { isTemplate, isMatching };
+    let matchKind: LineMatchKind = "none";
+
+    if (!isTemplate && trimmed.length > 0) {
+      if (rawSetB.has(line)) {
+        matchKind = "exact";
+      } else {
+        const normalized = normalizedLinesA[index];
+        if (normalized.length > 0 && normalizedSetB.has(normalized)) {
+          matchKind = "structural";
+        }
+      }
+    }
+
+    return { isTemplate, matchKind };
   });
 
-  const rightMeta: SideMeta = linesB.map((line) => {
-    const normalized = normalizeLine(line, opts);
-    const isTemplate = templateLines.has(line.trim());
-    const isMatching =
-      !isTemplate && normalized.length > 0 && normalizedA.has(normalized);
-    return { isTemplate, isMatching };
+  const rightMeta: SideMeta = linesB.map((line, index) => {
+    const trimmed = line.trim();
+    const isTemplate = trimmed.length > 0 && templateLines.has(trimmed);
+
+    let matchKind: LineMatchKind = "none";
+
+    if (!isTemplate && trimmed.length > 0) {
+      if (rawSetA.has(line)) {
+        matchKind = "exact";
+      } else {
+        const normalized = normalizedLinesB[index];
+        if (normalized.length > 0 && normalizedSetA.has(normalized)) {
+          matchKind = "structural";
+        }
+      }
+    }
+
+    return { isTemplate, matchKind };
   });
 
   return { leftMeta, rightMeta };

@@ -198,7 +198,9 @@ class MasterGrader:
             ) = plagiarism_detector.detect_plagiarism(
                 config.Config.OUTPUT_DIR,
                 template_path=config.Config.TEMPLATE_CODE_PATH,
-                ignore_variables=config.Config.IGNORE_VARIABLES,
+                mode="structural"
+                if config.Config.IGNORE_VARIABLES
+                else "literal",
             )
 
             print(

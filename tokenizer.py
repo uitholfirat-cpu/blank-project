@@ -4,8 +4,11 @@
 """
 
 import re
-from typing import List, Tuple
+from typing import List, Tuple, Literal
 import config
+
+
+TokenizationMode = Literal["structural", "literal"]
 
 
 class CTokenizer:
@@ -84,19 +87,26 @@ class CTokenizer:
         """بررسی اینکه آیا کاراکتر یک عملگر است"""
         return char in self.operators
 
-    def _tokenize_code(self, code: str, ignore_variables: bool = True) -> List[str]:
+    def _tokenize_code(
+        self,
+        code: str,
+        mode: TokenizationMode = "structural",
+    ) -> List[str]:
         """
         تبدیل کد به لیست توکن‌ها
 
         Args:
             code: کد C
-            ignore_variables: اگر True باشد، تمام شناسه‌های غیرکلیدی به «ID» نگاشت می‌شوند
-                (حالت هوشمند/ساختاری). اگر False باشد نام اصلی شناسه‌ها حفظ می‌شود
-                (حالت سخت‌گیرانه).
+            mode: حالت توکن‌سازی:
+                - "structural": نگاشت تمام شناسه‌های غیرکلیدی به «ID»
+                  (حساس به ساختار، مقاوم در برابر تغییر نام متغیرها).
+                - "literal": حفظ نام اصلی تمام شناسه‌ها
+                  (حساس به کپی‌های دقیق، شامل نام متغیرها).
         """
         tokens: List[str] = []
         i = 0
         code_len = len(code)
+        ignore_variables = mode == "structural"
 
         while i < code_len:
             # رد شدن از فاصله‌های خالی
@@ -236,15 +246,15 @@ class CTokenizer:
             # در صورت خطا، کد اصلی را برمی‌گردانیم
             return code
 
-    def tokenize(self, code: str, ignore_variables: bool = True) -> str:
+    def tokenize(self, code: str, mode: TokenizationMode = "structural") -> str:
         """
         توکن‌سازی کامل کد C
 
         Args:
             code: کد منبع C
-            ignore_variables: اگر True باشد، شناسه‌های غیرکلیدی به «ID» نگاشت می‌شوند
-                (حالت هوشمند/ساختاری). اگر False باشد نام اصلی شناسه‌ها حفظ می‌شود
-                (حالت سخت‌گیرانه).
+            mode: حالت توکن‌سازی:
+                - "structural": رشته توکن‌ها بر اساس ساختار (شناسه‌ها → ID)
+                - "literal": رشته توکن‌ها با حفظ نام شناسه‌ها
         """
         if not code or not code.strip():
             return ""
@@ -262,70 +272,72 @@ class CTokenizer:
         code = self._normalize_whitespace(code)
 
         # مرحله 5: توکن‌سازی
-        tokens = self._tokenize_code(code, ignore_variables=ignore_variables)
+        tokens = self._tokenize_code(code, mode=mode)
 
         # مرحله 6: تبدیل به رشته (بدون فاصله برای مقایسه دقیق‌تر)
         token_string = "".join(tokens)
 
         return token_string
 
-    def get_token_count(self, code: str, ignore_variables: bool = True) -> int:
+    def get_token_count(self, code: str, mode: TokenizationMode = "structural") -> int:
         """
         شمارش تعداد توکن‌ها
 
         Args:
             code: کد C
-            ignore_variables: همان پارامتر حالت هوشمند/سخت‌گیرانه در tokenize
+            mode: همان حالت توکن‌سازی استفاده شده در tokenize
         """
-        token_string = self.tokenize(code, ignore_variables=ignore_variables)
+        token_string = self.tokenize(code, mode=mode)
         return len(token_string)
 
     def is_code_valid_for_plagiarism_check(
-        self, code: str, ignore_variables: bool = True
+        self, code: str, mode: TokenizationMode = "structural"
     ) -> bool:
         """
         بررسی اینکه آیا کد برای بررسی تقلب معتبر است
 
         Args:
             code: کد C
-            ignore_variables: همان پارامتر حالت هوشمند/سخت‌گیرانه در tokenize
+            mode: همان حالت توکن‌سازی استفاده شده در tokenize
         """
-        token_count = self.get_token_count(code, ignore_variables=ignore_variables)
+        token_count = self.get_token_count(code, mode=mode)
         return token_count >= config.Config.MIN_TOKEN_COUNT
 
 
-def tokenize_file(file_path: str, ignore_variables: bool = True) -> str:
+def tokenize_file(file_path: str, mode: TokenizationMode = "structural") -> str:
     """
     توکن‌سازی یک فایل C
 
     Args:
         file_path: مسیر فایل
-        ignore_variables: اگر True باشد شناسه‌های غیرکلیدی به «ID» نگاشت می‌شوند
+        mode: حالت توکن‌سازی (\"structural\" یا \"literal\")
     """
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
 
         tokenizer = CTokenizer()
-        return tokenizer.tokenize(code, ignore_variables=ignore_variables)
+        return tokenizer.tokenize(code, mode=mode)
     except Exception as e:
         print(f"[WARN] Error reading file {file_path}: {str(e)}")
         return ""
 
 
-def get_token_count_from_file(file_path: str, ignore_variables: bool = True) -> int:
+def get_token_count_from_file(
+    file_path: str, mode: TokenizationMode = "structural"
+) -> int:
     """
     شمارش توکن‌های یک فایل
 
     Args:
         file_path: مسیر فایل
-        ignore_variables: همان پارامتر حالت هوشمند/سخت‌گیرانه در tokenize
+        mode: همان حالت توکن‌سازی استفاده شده در tokenize
     """
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
 
         tokenizer = CTokenizer()
-        return tokenizer.get_token_count(code, ignore_variables=ignore_variables)
+        return tokenizer.get_token_count(code, mode=mode)
     except Exception:
         return 0

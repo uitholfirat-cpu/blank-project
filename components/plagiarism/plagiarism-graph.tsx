@@ -72,7 +72,7 @@ export function PlagiarismGraph({ cases }: PlagiarismGraphProps) {
           </p>
         </div>
       </header>
-      <div className="relative h-[420px] overflow-hidden rounded-xl border border-border/80 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 shadow-soft-card">
+      <div className="relative h-[420px] overflow-hidden rounded-xl border border-border/80 bg-card shadow-soft-card">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -100,7 +100,7 @@ export function PlagiarismGraph({ cases }: PlagiarismGraphProps) {
           <Controls
             position="bottom-right"
             showInteractive={false}
-            className="!bg-slate-900/90 !border-slate-700/80"
+            className="!bg-card !border-border"
           />
         </ReactFlow>
       </div>

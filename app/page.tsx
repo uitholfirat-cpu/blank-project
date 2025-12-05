@@ -13,7 +13,7 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-3xl border border-border bg-card shadow-soft-card">
-        <div className="relative grid gap-8 rounded-3xl bg-gradient-to-br from-background via-background to-muted/60 px-6 py-8 sm:px-8 md:grid-cols-[minmax(0,_1.6fr)_minmax(0,_1.1fr)] lg:py-10 dark:from-slate-950/95 dark:via-slate-950/90 dark:to-slate-900/90">
+        <div className="relative grid gap-8 rounded-3xl bg-gradient-to-br from-background via-background to-muted/60 px-6 py-8 sm:px-8 md:grid-cols-[minmax(0,_1.6fr)_minmax(0,_1.1fr)] lg:py-10">
           {/* Glow accents for glassmorphism – dark mode only */}
           <div className="pointer-events-none absolute inset-0 hidden opacity-60 [mask-image:radial-gradient(circle_at_top_left,white,transparent_60%)] dark:block">
             <div className="absolute -left-24 -top-24 h-52 w-52 rounded-full bg-sky-500/20 blur-3xl" />
@@ -21,8 +21,8 @@ export default function HomePage() {
           </div>
 
           <div className="relative space-y-5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/70 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground shadow-sm backdrop-blur dark:border-sky-400/40 dark:bg-slate-900/80 dark:text-sky-300 dark:shadow-[0_0_0_1px_rgba(15,23,42,0.9)]">
-              <Sparkles className="h-3.5 w-3.5 text-primary dark:text-sky-300" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/70 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground shadow-sm backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
               <span>AI-powered C assignment analytics</span>
             </div>
 
@@ -45,7 +45,7 @@ export default function HomePage() {
                 <GitBranch className="h-3 w-3" />
                 <span>Token-based similarity + structural fingerprints</span>
               </div>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-100/70 px-2.5 py-1 text-sky-800 shadow-sm dark:bg-sky-500/10 dark:text-sky-200 dark:shadow-sky-500/30">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-primary shadow-sm dark:border-primary/50 dark:bg-primary/20 dark:text-primary-foreground">
                 <ShieldCheck className="h-3 w-3" />
                 <span>Cluster view for cheating rings</span>
               </div>
@@ -53,7 +53,7 @@ export default function HomePage() {
           </div>
 
           <div className="relative grid gap-3 sm:grid-cols-2">
-            <Card className="border border-border bg-card/95 shadow-soft-card dark:border-sky-500/40 dark:bg-slate-950/90 dark:shadow-[0_18px_40px_rgba(15,23,42,0.85)]">
+            <Card className="border border-border bg-card/95 shadow-soft-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Plagiarism engine</CardTitle>
                 <CardDescription className="text-[0.78rem]">
@@ -67,7 +67,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border bg-card/95 shadow-soft-card dark:border-slate-700/80 dark:bg-slate-950/90 dark:shadow-[0_18px_40px_rgba(15,23,42,0.85)]">
+            <Card className="border border-border bg-card/95 shadow-soft-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Instructor workflow</CardTitle>
                 <CardDescription className="text-[0.78rem]">
