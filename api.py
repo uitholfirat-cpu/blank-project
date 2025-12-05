@@ -7,6 +7,7 @@ import uuid
 import zipfile
 from enum import Enum
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple
+import sys
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,16 @@ from pydantic import BaseModel
 
 import config
 from main import MasterGrader
+
+
+# Ensure stdout is line-buffered so that print logs flush immediately,
+# even when running under Uvicorn/PyInstaller.
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        # If reconfiguration is not supported, fall back to default buffering.
+        pass
 
 
 class QuestionId(str, Enum):
@@ -131,6 +142,8 @@ async def upload(
     normalize_whitespace: Optional[bool] = Query(None),
     tokenization_enabled: Optional[bool] = Query(None),
 ) -> UploadResponse:
+    print("DEBUG: Upload request received!", flush=True)
+
     settings = GradingSettings(
         threshold=threshold,
         ignore_comments=ignore_comments,
