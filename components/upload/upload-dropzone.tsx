@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useReport, type ReportData } from "@/components/report-context";
+import { useSettings } from "@/components/settings/settings-context";
 
 type PipelineStep =
   | "idle"
@@ -16,9 +17,6 @@ type PipelineStep =
   | "tokenizing"
   | "analyzing"
   | "done";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const stepOrder: PipelineStep[] = [
   "uploading",
@@ -48,6 +46,7 @@ function stepLabel(step: PipelineStep) {
 export function UploadDropzone() {
   const router = useRouter();
   const { setReportData } = useReport();
+  const { settings } = useSettings();
 
   const [isDragging, setIsDragging] = useState(false);
   const [stepIndex, setStepIndex] = useState<number | null>(null);
@@ -81,8 +80,19 @@ export function UploadDropzone() {
       const formData = new FormData();
       formData.append("file", file);
 
+      const query = new URLSearchParams({
+        threshold: String(settings.threshold),
+        ignore_comments: settings.ignoreComments ? "true" : "false",
+        ignore_variable_names: settings.ignoreVariableNames ? "true" : "false"
+      });
+
+      const uploadUrl =
+        process.env.NODE_ENV === "development"
+          ? `http://127.0.0.1:8000/upload?${query.toString()}`
+          : `/upload?${query.toString()}`;
+
       try {
-        const response = await fetch("/upload", {
+        const response = await fetch(uploadUrl, {
           method: "POST",
           body: formData
         });
@@ -132,8 +142,9 @@ export function UploadDropzone() {
         setIsUploading(false);
       }
     },
-    [router, setReportData]
+    [router, setReportData, settings]
   );
+        
 
   const startPipeline = useCallback(
     (files: FileList | null) => {

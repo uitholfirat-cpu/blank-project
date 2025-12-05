@@ -22,7 +22,7 @@ class Config:
     # پارامترهای تصحیح (Grading Parameters)
     # ==============================
     NUM_QUESTIONS = 6  # تعداد سوالات تمرین
-    SIMILARITY_THRESHOLD = 85.0  # آستانه شباهت برای تشخیص تقلب (درصد)
+    SIMILARITY_THRESHOLD = 95.0  # آستانه شباهت برای تشخیص تقلب (درصد)
     MIN_TOKEN_COUNT = 50  # حداقل تعداد توکن برای بررسی تقلب (جلوگیری از False Positive)
     
     # ==============================
@@ -44,6 +44,7 @@ class Config:
     NORMALIZE_WHITESPACE = True  # نرمال‌سازی فاصله‌های خالی
     REMOVE_COMMENTS = True  # حذف کامنت‌ها
     REMOVE_INCLUDES = True  # حذف #include ها
+    IGNORE_VARIABLES = False  # در صورت True، نام متغیرها در مقایسه نادیده گرفته می‌شود
     
     # ==============================
     # تنظیمات گزارش‌دهی (Reporting)

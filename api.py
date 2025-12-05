@@ -66,6 +66,7 @@ class UploadResponse(BaseModel):
 class GradingSettings(BaseModel):
     threshold: Optional[float] = None
     ignore_comments: Optional[bool] = None
+    ignore_variable_names: Optional[bool] = None
     normalize_whitespace: Optional[bool] = None
     tokenization_enabled: Optional[bool] = None
 
@@ -118,12 +119,14 @@ async def upload(
     file: UploadFile = File(...),
     threshold: Optional[float] = Query(None),
     ignore_comments: Optional[bool] = Query(None),
+    ignore_variable_names: Optional[bool] = Query(None),
     normalize_whitespace: Optional[bool] = Query(None),
     tokenization_enabled: Optional[bool] = Query(None),
 ) -> UploadResponse:
     settings = GradingSettings(
         threshold=threshold,
         ignore_comments=ignore_comments,
+        ignore_variable_names=ignore_variable_names,
         normalize_whitespace=normalize_whitespace,
         tokenization_enabled=tokenization_enabled,
     )
@@ -162,6 +165,7 @@ def _snapshot_config() -> Dict[str, Any]:
         "NORMALIZE_WHITESPACE": config.Config.NORMALIZE_WHITESPACE,
         "REMOVE_COMMENTS": config.Config.REMOVE_COMMENTS,
         "REMOVE_INCLUDES": config.Config.REMOVE_INCLUDES,
+        "IGNORE_VARIABLES": config.Config.IGNORE_VARIABLES,
     }
 
 
@@ -173,6 +177,7 @@ def _restore_config(snapshot: Dict[str, Any]) -> None:
     config.Config.NORMALIZE_WHITESPACE = snapshot["NORMALIZE_WHITESPACE"]
     config.Config.REMOVE_COMMENTS = snapshot["REMOVE_COMMENTS"]
     config.Config.REMOVE_INCLUDES = snapshot["REMOVE_INCLUDES"]
+    config.Config.IGNORE_VARIABLES = snapshot["IGNORE_VARIABLES"]
 
 
 def _apply_settings_from_request(settings: GradingSettings) -> None:
@@ -180,6 +185,8 @@ def _apply_settings_from_request(settings: GradingSettings) -> None:
         config.Config.SIMILARITY_THRESHOLD = settings.threshold
     if settings.ignore_comments is not None:
         config.Config.REMOVE_COMMENTS = settings.ignore_comments
+    if settings.ignore_variable_names is not None:
+        config.Config.IGNORE_VARIABLES = settings.ignore_variable_names
     if settings.normalize_whitespace is not None:
         config.Config.NORMALIZE_WHITESPACE = settings.normalize_whitespace
     if settings.tokenization_enabled is not None:

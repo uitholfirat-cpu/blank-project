@@ -15,9 +15,9 @@ type SettingsContextValue = {
 };
 
 const defaultSettings: EngineSettings = {
-  threshold: 80,
+  threshold: 95,
   ignoreComments: true,
-  ignoreVariableNames: true,
+  ignoreVariableNames: false,
   functionSorting: false
 };
 
