@@ -205,6 +205,7 @@ class ZipExtractor:
                 # استخراج RAR
                 if PATOOLIB_AVAILABLE:
                     try:
+                        print(f"[DEBUG] Extracting {zip_path}...", flush=True)
                         patoolib.extract_archive(
                             zip_path,
                             outdir=extract_to,
@@ -246,6 +247,7 @@ class ZipExtractor:
                 # استخراج 7Z
                 if PATOOLIB_AVAILABLE:
                     try:
+                        print(f"[DEBUG] Extracting {zip_path}...", flush=True)
                         patoolib.extract_archive(
                             zip_path,
                             outdir=extract_to,
