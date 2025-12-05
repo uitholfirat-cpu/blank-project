@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import ReactFlow, {
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   MarkerType,
@@ -86,7 +87,7 @@ export function PlagiarismGraph({ cases }: PlagiarismGraphProps) {
           <Background
             gap={22}
             color="rgba(148, 163, 184, 0.3)"
-            variant="dots"
+            variant={BackgroundVariant.Dots}
           />
           <MiniMap
             nodeStrokeColor={(n) =>
