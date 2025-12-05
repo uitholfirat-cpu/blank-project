@@ -181,6 +181,14 @@ def _restore_config(snapshot: Dict[str, Any]) -> None:
 
 
 def _apply_settings_from_request(settings: GradingSettings) -> None:
+    """
+    اعمال تنظیمات سطح درخواست روی Config سراسری.
+
+    توجه: آستانه تشخیص (threshold) همچنان اینجا ست می‌شود تا با
+    MasterGrader همگام باشد. تنظیمات دیگری مانند حذف کامنت‌ها و
+    نادیده‌گرفتن نام متغیرها علاوه بر این، به صورت مستقیم به MasterGrader
+    نیز پاس داده می‌شوند تا رفتار موتور در هر درخواست شفاف باشد.
+    """
     if settings.threshold is not None:
         config.Config.SIMILARITY_THRESHOLD = settings.threshold
     if settings.ignore_comments is not None:
@@ -263,6 +271,10 @@ def process_submission_batch(
                 output_dir=output_dir,
                 threshold=config.Config.SIMILARITY_THRESHOLD,
                 template_path=config.Config.TEMPLATE_CODE_PATH,
+                ignore_comments=settings.ignore_comments,
+                ignore_variable_names=settings.ignore_variable_names,
+                normalize_whitespace=settings.normalize_whitespace,
+                tokenization_enabled=settings.tokenization_enabled,
             )
 
             try:

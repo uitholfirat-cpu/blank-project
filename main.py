@@ -7,7 +7,7 @@ import os
 import sys
 import argparse
 import shutil
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import config
 import extractor
@@ -25,6 +25,10 @@ class MasterGrader:
         output_dir: str = None,
         threshold: float = None,
         template_path: str = None,
+        ignore_comments: Optional[bool] =ne,
+        ignore_variable_names: bool | None = None,
+        normalize_whitespace: bool | None = None,
+        tokenization_enabled: bool | None = None,
     ):
         """
         Args:
@@ -32,6 +36,10 @@ class MasterGrader:
             output_dir: مسیر خروجی (پیش‌فرض از config)
             threshold: آستانه شباهت (پیش‌فرض از config)
             template_path: مسیر فایل قالب (پیش‌فرض از config)
+            ignore_comments: نادیده گرفتن کامنت‌ها در مرحله توکن‌سازی (در صورت مقداردهی)
+            ignore_variable_names: نادیده گرفتن نام متغیرها (حالت Smart در صورت True)
+            normalize_whitespace: نرمال‌سازی فاصله‌ها (در صورت مقداردهی)
+            tokenization_enabled: فعال/غیرفعال کردن موتور توکن‌سازی (در صورت مقداردهی)
         """
         self.log_entries: List[Dict] = []
         self.extraction_results: Dict = {}
@@ -40,7 +48,7 @@ class MasterGrader:
         self.statistics: Dict = {}
         self.temp_dirs: List[str] = []  # لیست پوشه‌های موقت برای پاکسازی
 
-        # اعمال تنظیمات CLI
+        # اعمال تنظیمات CLI / API
         if root_dir:
             config.Config.ROOT_DIR = root_dir
         if output_dir:
@@ -49,6 +57,14 @@ class MasterGrader:
             config.Config.SIMILARITY_THRESHOLD = threshold
         if template_path:
             config.Config.TEMPLATE_CODE_PATH = template_path
+        if ignore_comments is not None:
+            config.Config.REMOVE_COMMENTS = ignore_comments
+        if ignore_variable_names is not None:
+            config.Config.IGNORE_VARIABLES = ignore_variable_names
+        if normalize_whitespace is not None:
+            config.Config.NORMALIZE_WHITESPACE = normalize_whitespace
+        if tokenization_enabled is not None:
+            config.Config.TOKENIZATION_ENABLED = tokenization_enabled
 
     def log_error(self, error_info: Dict):
         """
@@ -182,6 +198,7 @@ class MasterGrader:
             ) = plagiarism_detector.detect_plagiarism(
                 config.Config.OUTPUT_DIR,
                 template_path=config.Config.TEMPLATE_CODE_PATH,
+                ignore_variables=config.Config.IGNORE_VARIABLES,
             )
 
             print(
