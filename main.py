@@ -25,7 +25,7 @@ class MasterGrader:
         output_dir: str = None,
         threshold: float = None,
         template_path: str = None,
-        ignore_comments: Optional[bool] =ne,
+        ignore_comments: Optional[bool] = None,
         ignore_variable_names: bool | None = None,
         normalize_whitespace: bool | None = None,
         tokenization_enabled: bool | None = None,
