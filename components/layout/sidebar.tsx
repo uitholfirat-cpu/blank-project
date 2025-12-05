@@ -54,7 +54,7 @@ function SidebarNav({
   onNavigate?: () => void;
 }) {
   return (
-    <div className="flex h-full w-full flex-col rounded-2xl border border-sky-500/30 bg-gradient-to-b from-slate-900/80 via-slate-950/80 to-slate-900/90 px-3 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.85)] backdrop-blur-xl">
+    <div className="flex h-full w-full flex-col rounded-2xl border border-border bg-card/90 px-3 py-4 shadow-soft-card backdrop-blur-xl dark:border-sky-500/30 dark:bg-gradient-to-b dark:from-slate-900/80 dark:via-slate-950/80 dark:to-slate-900/90 dark:shadow-[0_18px_45px_rgba(15,23,42,0.85)]">
       <div className="mb-4 flex items-center gap-3 px-1">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 via-cyan-400 to-blue-500 text-white shadow-lg shadow-sky-500/40 ring-1 ring-sky-500/60">
           <GitBranch className="h-5 w-5" />
@@ -63,7 +63,7 @@ function SidebarNav({
           <span className="text-sm font-semibold tracking-tight">
             MasterGrader
           </span>
-          <span className="text-[0.7rem] font-medium uppercase tracking-[0.16em] text-sky-300/80">
+          <span className="text-[0.7rem] font-medium uppercase tracking-[0.16em] text-muted-foreground dark:text-sky-300/80">
             C Lab Engine
           </span>
         </div>
@@ -82,18 +82,19 @@ function SidebarNav({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "group relative flex items-center justify-between rounded-lg px-2 py-2 text-sm font-medium text-slate-300/90 transition-all hover:text-slate-50",
-                "hover:bg-slate-800/60 hover:shadow-[0_0_0_1px_rgba(56,189,248,0.5)]",
+                "group relative flex items-center justify-between rounded-lg px-2 py-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground",
+                "hover:bg-muted/80 hover:shadow-[0_0_0_1px_rgba(56,189,248,0.5)] dark:hover:bg-slate-800/60",
                 isActive &&
-                  "bg-slate-900/80 text-sky-100 shadow-[0_0_0_1px_rgba(56,189,248,0.9)]"
+                  "bg-muted text-foreground shadow-[0_0_0_1px_rgba(56,189,248,0.9)] dark:bg-slate-900/80 dark:text-sky-100"
               )}
             >
               <span className="flex items-center gap-2">
                 <span
                   className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-md border border-slate-700/60 bg-slate-900/60 text-slate-300/80 shadow-inner transition-colors group-hover:border-sky-400 group-hover:bg-slate-900 group-hover:text-sky-300",
+                    "flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-inner transition-colors group-hover:border-primary group-hover:bg-accent/10 group-hover:text-primary",
+                    "dark:border-slate-700/60 dark:bg-slate-900/60 dark:text-slate-300/80",
                     isActive &&
-                      "border-sky-400 bg-sky-500/20 text-sky-200"
+                      "border-primary bg-accent/20 text-primary dark:border-sky-400 dark:bg-sky-500/20 dark:text-sky-200"
                   )}
                 >
                   <Icon className="h-[1.05rem] w-[1.05rem]" />
@@ -101,7 +102,7 @@ function SidebarNav({
                 <span>{item.label}</span>
               </span>
               {item.badge ? (
-                <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-[0.1rem] text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-amber-300">
+                <span className="rounded-full border border-amber-500/40 bg-amber-100 px-2 py-[0.1rem] text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                   {item.badge}
                 </span>
               ) : null}
@@ -110,8 +111,8 @@ function SidebarNav({
         })}
       </nav>
 
-      <div className="mt-4 rounded-xl border border-slate-700/70 bg-slate-900/70 px-3 py-2 text-[0.7rem] text-slate-300/80 shadow-inner">
-        <p className="font-medium text-slate-100/90">Session</p>
+      <div className="mt-4 rounded-xl border border-border bg-muted/80 px-3 py-2 text-[0.7rem] text-muted-foreground shadow-inner dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-300/80">
+        <p className="font-medium">Session</p>
         <p>Spring 2025 • CS101 – Intro to C</p>
       </div>
     </div>
@@ -130,7 +131,7 @@ export function Sidebar() {
       <button
         type="button"
         aria-label="Open navigation"
-        className="fixed left-3 top-3 z-40 inline-flex h-9 w-9 items-center justify-center rounded-full border border-sky-500/40 bg-slate-950/70 text-slate-200 shadow-lg shadow-sky-500/30 backdrop-blur md:hidden"
+        className="fixed left-3 top-3 z-40 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/80 text-foreground shadow-sm backdrop-blur md:hidden dark:border-sky-500/40 dark:bg-slate-950/70 dark:text-slate-200 dark:shadow-lg dark:shadow-sky-500/30"
         onClick={() => setIsMobileOpen(true)}
       >
         <Menu className="h-4 w-4" />
@@ -145,7 +146,7 @@ export function Sidebar() {
       >
         <div
           className={cn(
-            "absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity",
+            "absolute inset-0 bg-background/70 backdrop-blur-sm transition-opacity dark:bg-slate-950/60",
             isMobileOpen ? "opacity-100" : "opacity-0"
           )}
           onClick={closeMobile}
@@ -157,13 +158,13 @@ export function Sidebar() {
           )}
         >
           <div className="mb-2 flex items-center justify-between px-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300/80">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground dark:text-sky-300/80">
               Navigation
             </span>
             <button
               type="button"
               aria-label="Close navigation"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/70 bg-slate-900/80 text-slate-200 shadow"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-foreground shadow dark:border-slate-700/70 dark:bg-slate-900/80 dark:text-slate-200"
               onClick={closeMobile}
             >
               <X className="h-4 w-4" />

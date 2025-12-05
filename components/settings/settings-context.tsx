@@ -21,6 +21,8 @@ const defaultSettings: EngineSettings = {
   functionSorting: false
 };
 
+const STORAGE_KEY = "mastergrader-engine-settings";
+
 const SettingsContext = React.createContext<SettingsContextValue | undefined>(
   undefined
 );
@@ -32,6 +34,37 @@ export function SettingsProvider({
 }) {
   const [settings, setSettings] =
     React.useState<EngineSettings>(defaultSettings);
+
+  // Hydrate settings from localStorage on mount
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored) as Partial<EngineSettings>;
+      if (!parsed || typeof parsed !== "object") return;
+
+      setSettings((prev) => ({
+        ...prev,
+        ...parsed
+      }));
+    } catch {
+      // Ignore malformed or unavailable localStorage
+    }
+  }, []);
+
+  // Persist settings whenever they change
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch {
+      // Ignore write errors (e.g. private mode)
+    }
+  }, [settings]);
 
   return (
     <SettingsContext.Provider value={{ settings, setSettings }}>
