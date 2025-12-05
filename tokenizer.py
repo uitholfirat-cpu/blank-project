@@ -134,7 +134,10 @@ class CTokenizer:
                 if self._is_keyword(word):
                     tokens.append(word.upper())
                 else:
-                    tokens.append("ID")
+                    if config.Config.IGNORE_VARIABLES:
+                        tokens.append("ID")
+                    else:
+                        tokens.append(word)
 
                 i = id_match.end()
                 continue
