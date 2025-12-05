@@ -73,6 +73,12 @@ export function UploadDropzone() {
       setIsUploading(true);
       setError(null);
 
+      console.log("[UploadDropzone] Starting upload pipeline", {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
+      });
+
       // Start pipeline at "uploading"
       setStepIndex(0);
       setProgress(10);
@@ -86,15 +92,29 @@ export function UploadDropzone() {
         ignore_variable_names: settings.ignoreVariableNames ? "true" : "false"
       });
 
+      console.log("[UploadDropzone] Built query string", query.toString());
+
       const uploadUrl =
         process.env.NODE_ENV === "development"
-          ? `http://127.0.0.1:8000/upload?${query.toString()}`
+          ? `http://localhost:8000/upload?${query.toString()}`
           : `/upload?${query.toString()}`;
 
+      console.log("[UploadDropzone] Upload URL", uploadUrl);
+
       try {
+        console.log("[UploadDropzone] Sending request to backend", {
+          url: uploadUrl,
+          time: new Date().toISOString()
+        });
+
         const response = await fetch(uploadUrl, {
           method: "POST",
           body: formData
+        });
+
+        console.log("[UploadDropzone] Received response", {
+          ok: response.ok,
+          status: response.status
         });
 
         if (!response.ok) {
@@ -111,6 +131,12 @@ export function UploadDropzone() {
           } catch {
             // Ignore JSON parsing errors and fall back to default message.
           }
+
+          console.log("[UploadDropzone] Backend returned error response", {
+            status: response.status,
+            message
+          });
+
           throw new Error(message);
         }
 
@@ -121,16 +147,25 @@ export function UploadDropzone() {
           setProgress(70);
         }
 
+        console.log("[UploadDropzone] Response OK, parsing JSON");
+
         const data = (await response.json()) as ReportData;
+        console.log("[UploadDropzone] Parsed report data", {
+          plagiarismCases: Array.isArray(data.plagiarismCases)
+            ? data.plagiarismCases.length
+            : undefined
+        });
+
         setReportData(data);
 
         // Mark as done and navigate to dashboard
         setStepIndex(stepOrder.length - 1);
         setProgress(100);
 
+        console.log("[UploadDropzone] Upload and analysis completed, navigating to dashboard");
         router.push("/dashboard");
       } catch (err) {
-        console.error(err);
+        console.error("[UploadDropzone] Upload request failed", err);
         setStepIndex(null);
         setProgress(0);
         setError(
@@ -139,6 +174,7 @@ export function UploadDropzone() {
             : "An unexpected error occurred while running analysis."
         );
       } finally {
+        console.log("[UploadDropzone] Upload pipeline finished");
         setIsUploading(false);
       }
     },

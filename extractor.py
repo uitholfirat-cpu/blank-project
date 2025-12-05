@@ -206,7 +206,10 @@ class ZipExtractor:
                 if PATOOLIB_AVAILABLE:
                     try:
                         patoolib.extract_archive(
-                            zip_path, outdir=extract_to, verbosity=-1
+                            zip_path,
+                            outdir=extract_to,
+                            verbosity=-1,
+                            interactive=False,
                         )
                         self.extracted_files.add(zip_abs_path)
                         return True
@@ -244,7 +247,10 @@ class ZipExtractor:
                 if PATOOLIB_AVAILABLE:
                     try:
                         patoolib.extract_archive(
-                            zip_path, outdir=extract_to, verbosity=-1
+                            zip_path,
+                            outdir=extract_to,
+                            verbosity=-1,
+                            interactive=False,
                         )
                         self.extracted_files.add(zip_abs_path)
                         return True
