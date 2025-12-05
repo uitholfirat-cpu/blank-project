@@ -3,12 +3,14 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+import uuid
 import zipfile
 from enum import Enum
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -61,6 +63,8 @@ class UploadResponse(BaseModel):
     dashboardStats: DashboardStats
     gradeDistribution: List[GradeDistributionItem]
     originalityStats: List[OriginalityStatItem]
+    processingErrors: List[str] = []
+    reportFiles: Dict[str, str] = {}
 
 
 class GradingSettings(BaseModel):
@@ -101,6 +105,10 @@ app.add_middleware(
 
 # Serve the statically exported Next.js frontend (from the `out` directory) at the root path.
 FRONTEND_BUILD_DIR = os.path.join(os.path.dirname(__file__), "out")
+
+# Directory where generated report files are persisted for download via the API.
+REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
+os.makedirs(REPORTS_DIR, exist_ok=True)
 
 
 @app.exception_handler(404)
@@ -203,6 +211,8 @@ def process_submission_batch(
     if not safe_name.lower().endswith(".zip"):
         raise SubmissionValidationError("Only .zip files are supported.")
 
+    batch_id = uuid.uuid4().hex
+
     with tempfile.TemporaryDirectory(prefix="mastergrader_") as work_dir:
         upload_path = os.path.join(work_dir, safe_name)
 
@@ -279,11 +289,16 @@ def process_submission_batch(
             grade_distribution = _build_grade_distribution(grader, plagiarism_cases)
             originality_stats = _build_originality_stats(grader, plagiarism_cases)
 
+            processing_errors = _build_processing_errors(grader.log_entries)
+            report_files = _persist_report_files(batch_id)
+
             return UploadResponse(
                 plagiarismCases=plagiarism_cases,
                 dashboardStats=dashboard_stats,
                 gradeDistribution=grade_distribution,
                 originalityStats=originality_stats,
+                processingErrors=processing_errors,
+                reportFiles=report_files,
             )
         finally:
             _restore_config(snapshot)
@@ -442,6 +457,91 @@ def _build_originality_stats(
         OriginalityStatItem(label="Original", value=original_percent),
         OriginalityStatItem(label="Suspicious", value=suspicious_percent),
     ]
+
+
+def _build_processing_errors(log_entries: List[Dict[str, Any]]) -> List[str]:
+    """
+    Convert internal log entries into a user-facing list of warning strings.
+    """
+    errors: List[str] = []
+    seen: set[str] = set()
+
+    for entry in log_entries or []:
+        message = str(entry.get("message", "")).strip()
+        student_id = str(entry.get("student_id") or "").strip()
+        file_path = str(entry.get("file_path") or "").strip()
+
+        parts: List[str] = []
+        if message:
+            parts.append(message)
+
+        detail_parts: List[str] = []
+        if student_id:
+            detail_parts.append(f"student {student_id}")
+        if file_path:
+            detail_parts.append(file_path)
+
+        if detail_parts:
+            parts.append(f"({' – '.join(detail_parts)})")
+
+        text = " ".join(parts).strip()
+        if not text:
+            continue
+        if text in seen:
+            continue
+
+        seen.add(text)
+        errors.append(text)
+
+    return errors
+
+
+def _persist_report_files(batch_id: str) -> Dict[str, str]:
+    """
+    Copy generated report files from the per-request output directory into a
+    persistent reports folder and return API download paths.
+    """
+    files: Dict[str, str] = {}
+
+    # Main CSV report
+    csv_src = config.Config.get_report_file_path()
+    if os.path.exists(csv_src):
+        csv_name = f"{batch_id}_Plagiarism_Report.csv"
+        csv_dest = os.path.join(REPORTS_DIR, csv_name)
+        shutil.copy2(csv_src, csv_dest)
+        files["csv"] = f"/download/{csv_name}"
+
+    # Detailed text report
+    detailed_src = os.path.join(config.Config.OUTPUT_DIR, "Detailed_Report.txt")
+    if os.path.exists(detailed_src):
+        detailed_name = f"{batch_id}_Detailed_Report.txt"
+        detailed_dest = os.path.join(REPORTS_DIR, detailed_name)
+        shutil.copy2(detailed_src, detailed_dest)
+        files["detailed"] = f"/download/{detailed_name}"
+
+    # Clusters CSV report
+    clusters_src = os.path.join(config.Config.OUTPUT_DIR, "Clusters_Report.csv")
+    if os.path.exists(clusters_src):
+        clusters_name = f"{batch_id}_Clusters_Report.csv"
+        clusters_dest = os.path.join(REPORTS_DIR, clusters_name)
+        shutil.copy2(clusters_src, clusters_dest)
+        files["clusters"] = f"/download/{clusters_name}"
+
+    return files
+
+
+@app.get("/download/{filename}")
+async def download_report(filename: str):
+    """
+    Serve generated report files for download by the frontend.
+    """
+    safe_name = os.path.basename(filename)
+    file_path = os.path.join(REPORTS_DIR, safe_name)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Report file not found.")
+
+    return FileResponse(path=file_path, filename=safe_name)
 
 
 if os.path.isdir(FRONTEND_BUILD_DIR):
