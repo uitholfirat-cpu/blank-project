@@ -51,6 +51,13 @@
 
 body {
   @apply bg-background text-foreground antialiased;
+  user-select: none;
+}
+
+.allow-select,
+input,
+textarea {
+  user-select: text;
 }
 
 /* Scrollbars */
