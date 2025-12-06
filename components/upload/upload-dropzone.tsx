@@ -89,7 +89,12 @@ export function UploadDropzone() {
       const query = new URLSearchParams({
         threshold: String(settings.threshold),
         ignore_comments: settings.ignoreComments ? "true" : "false",
-        ignore_variable_names: settings.ignoreVariableNames ? "true" : "false"
+        ignore_variable_names: settings.ignoreVariableNames ? "true" : "false",
+        sensitivity_mode: settings.sensitivityMode,
+        ignore_function_names: settings.ignoreFunctionNames ? "true" : "false",
+        ignore_type_names: settings.ignoreTypeNames ? "true" : "false",
+        ignore_string_literals: settings.ignoreStringLiterals ? "true" : "false",
+        ignore_numeric_literals: settings.ignoreNumericLiterals ? "true" : "false"
       });
 
       console.log("[UploadDropzone] Built query string", query.toString());

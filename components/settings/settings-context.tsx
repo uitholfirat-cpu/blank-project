@@ -4,8 +4,13 @@ import * as React from "react";
 
 export type EngineSettings = {
   threshold: number;
+  sensitivityMode: "smart" | "balanced" | "strict" | "custom";
   ignoreComments: boolean;
   ignoreVariableNames: boolean;
+  ignoreFunctionNames: boolean;
+  ignoreTypeNames: boolean;
+  ignoreStringLiterals: boolean;
+  ignoreNumericLiterals: boolean;
   functionSorting: boolean;
 };
 
@@ -16,8 +21,13 @@ type SettingsContextValue = {
 
 const defaultSettings: EngineSettings = {
   threshold: 95,
+  sensitivityMode: "balanced",
   ignoreComments: true,
-  ignoreVariableNames: false,
+  ignoreVariableNames: true,
+  ignoreFunctionNames: false,
+  ignoreTypeNames: false,
+  ignoreStringLiterals: true,
+  ignoreNumericLiterals: true,
   functionSorting: false
 };
 

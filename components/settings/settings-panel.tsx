@@ -3,16 +3,83 @@
 import { useState } from "react";
 import { FileText, SlidersHorizontal } from "lucide-react";
 
-import { useSettings } from "@/components/settings/settings-context";
+import {
+  useSettings,
+  type EngineSettings
+} from "@/components/settings/settings-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+type SensitivityMode = EngineSettings["sensitivityMode"];
 
 export function SettingsPanel() {
   const { settings, setSettings } = useSettings();
   const [templateFileName, setTemplateFileName] = useState<string | null>(null);
+
+  const currentMode: SensitivityMode = settings.sensitivityMode;
+  const isCustomMode = currentMode === "custom";
+
+  const handleModeChange = (mode: SensitivityMode) => {
+    setSettings((prev) => {
+      if (prev.sensitivityMode === mode) {
+        return prev;
+      }
+
+      const base: EngineSettings = { ...prev, sensitivityMode: mode };
+
+      switch (mode) {
+        case "smart":
+          return {
+            ...base,
+            ignoreComments: true,
+            ignoreVariableNames: true,
+            ignoreFunctionNames: true,
+            ignoreTypeNames: true,
+            ignoreStringLiterals: true,
+            ignoreNumericLiterals: true,
+            functionSorting: true
+          };
+        case "strict":
+          return {
+            ...base,
+            ignoreComments: false,
+            ignoreVariableNames: false,
+            ignoreFunctionNames: false,
+            ignoreTypeNames: false,
+            ignoreStringLiterals: false,
+            ignoreNumericLiterals: false,
+            functionSorting: false
+          };
+        case "balanced":
+          return {
+            ...base,
+            ignoreComments: true,
+            ignoreVariableNames: true,
+            ignoreFunctionNames: false,
+            ignoreTypeNames: false,
+            ignoreStringLiterals: true,
+            ignoreNumericLiterals: true,
+            functionSorting: false
+          };
+        case "custom":
+        default:
+          return base;
+      }
+    });
+  };
+
+  const modeSubtitle =
+    currentMode === "smart"
+      ? "Aggressive structural matching"
+      : currentMode === "strict"
+      ? "Only flags near-exact copies"
+      : currentMode === "custom"
+      ? "Manual sensitivity configuration"
+      : "Balanced defaults (recommended)";
 
   return (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,_1.6fr)_minmax(0,_1.1fr)]">
@@ -31,6 +98,45 @@ export function SettingsPanel() {
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <Label className="text-xs">Detection mode</Label>
+              <span className="text-[0.7rem] text-muted-foreground">
+                {modeSubtitle}
+              </span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-4">
+              <ModeButton
+                mode="smart"
+                label="Smart"
+                description="Ignore most cosmetic changes to surface hidden collusion."
+                active={currentMode === "smart"}
+                onClick={handleModeChange}
+              />
+              <ModeButton
+                mode="balanced"
+                label="Balanced"
+                description="Recommended defaults for most C lab cohorts."
+                active={currentMode === "balanced"}
+                onClick={handleModeChange}
+              />
+              <ModeButton
+                mode="strict"
+                label="Strict"
+                description="Only flag near-identical submissions."
+                active={currentMode === "strict"}
+                onClick={handleModeChange}
+              />
+              <ModeButton
+                mode="custom"
+                label="Custom"
+                description="Manually tune what the engine should ignore."
+                active={currentMode === "custom"}
+                onClick={handleModeChange}
+              />
+            </div>
+          </div>
+
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs">
               <Label htmlFor="threshold-slider" className="text-xs">
@@ -63,9 +169,11 @@ export function SettingsPanel() {
               label="Ignore comments"
               description="Strip // and /* */ blocks before computing similarity."
               checked={settings.ignoreComments}
+              disabled={!isCustomMode}
               onCheckedChange={(value) =>
                 setSettings((prev) => ({
                   ...prev,
+                  sensitivityMode: "custom",
                   ignoreComments: Boolean(value)
                 }))
               }
@@ -75,10 +183,68 @@ export function SettingsPanel() {
               label="Ignore variable names"
               description="Tokenize identifiers so renaming alone does not evade detection."
               checked={settings.ignoreVariableNames}
+              disabled={!isCustomMode}
               onCheckedChange={(value) =>
                 setSettings((prev) => ({
                   ...prev,
+                  sensitivityMode: "custom",
                   ignoreVariableNames: Boolean(value)
+                }))
+              }
+            />
+            <ToggleRow
+              id="ignore-func-names"
+              label="Ignore function names"
+              description="Treat renamed helper functions as equivalent when comparing logic."
+              checked={settings.ignoreFunctionNames}
+              disabled={!isCustomMode}
+              onCheckedChange={(value) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  sensitivityMode: "custom",
+                  ignoreFunctionNames: Boolean(value)
+                }))
+              }
+            />
+            <ToggleRow
+              id="ignore-type-names"
+              label="Ignore type names"
+              description="Ignore renamed structs, enums, and typedefs when matching."
+              checked={settings.ignoreTypeNames}
+              disabled={!isCustomMode}
+              onCheckedChange={(value) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  sensitivityMode: "custom",
+                  ignoreTypeNames: Boolean(value)
+                }))
+              }
+            />
+            <ToggleRow
+              id="ignore-strings"
+              label="Ignore string literals"
+              description="Normalize string contents so only control flow and structure matter."
+              checked={settings.ignoreStringLiterals}
+              disabled={!isCustomMode}
+              onCheckedChange={(value) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  sensitivityMode: "custom",
+                  ignoreStringLiterals: Boolean(value)
+                }))
+              }
+            />
+            <ToggleRow
+              id="ignore-numbers"
+              label="Ignore numbers"
+              description="Treat numeric constants as generic tokens during comparison."
+              checked={settings.ignoreNumericLiterals}
+              disabled={!isCustomMode}
+              onCheckedChange={(value) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  sensitivityMode: "custom",
+                  ignoreNumericLiterals: Boolean(value)
                 }))
               }
             />
@@ -87,9 +253,11 @@ export function SettingsPanel() {
               label="Function sorting"
               description="Compare functions independent of their order (advanced)."
               checked={settings.functionSorting}
+              disabled={!isCustomMode}
               onCheckedChange={(value) =>
                 setSettings((prev) => ({
                   ...prev,
+                  sensitivityMode: "custom",
                   functionSorting: Boolean(value)
                 }))
               }
@@ -156,33 +324,85 @@ export function SettingsPanel() {
   );
 }
 
+type ModeButtonProps = {
+  mode: SensitivityMode;
+  label: string;
+  description: string;
+  active: boolean;
+  onClick: (mode: SensitivityMode) => void;
+};
+
+function ModeButton({
+  mode,
+  label,
+  description,
+  active,
+  onClick
+}: ModeButtonProps) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "flex flex-col items-start rounded-md border px-3 py-2 text-left text-[0.7rem] transition-colors",
+        active
+          ? "border-primary bg-primary/10 text-foreground"
+          : "border-border/70 bg-background/80 text-muted-foreground hover:bg-muted/60"
+      )}
+      onClick={() => onClick(mode)}
+    >
+      <span className="text-xs font-medium text-foreground">{label}</span>
+      <span className="mt-0.5 leading-snug">{description}</span>
+    </button>
+  );
+}
+
 function ToggleRow({
   id,
   label,
   description,
   checked,
+  disabled,
   onCheckedChange
 }: {
   id: string;
   label: string;
   description: string;
   checked: boolean;
+  disabled?: boolean;
   onCheckedChange: (value: boolean) => void;
 }) {
   return (
     <div className="flex gap-3">
       <div className="flex flex-1 flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          <Label htmlFor={id} className="text-xs">
+          <Label
+            htmlFor={id}
+            className={cn(
+              "text-xs",
+              disabled && "text-muted-foreground/70 cursor-not-allowed"
+            )}
+          >
             {label}
           </Label>
           <Switch
             id={id}
             checked={checked}
-            onCheckedChange={(value) => onCheckedChange(Boolean(value))}
+            disabled={disabled}
+            onCheckedChange={(value) => {
+              if (!disabled) {
+                onCheckedChange(Boolean(value));
+              }
+            }}
           />
         </div>
-        <p className="text-[0.68rem] text-muted-foreground">{description}</p>
+        <p
+          className={cn(
+            "text-[0.68rem] text-muted-foreground",
+            disabled && "opacity-60"
+          )}
+        >
+          {description}
+        </p>
       </div>
     </div>
   );
