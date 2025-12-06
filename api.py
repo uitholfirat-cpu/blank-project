@@ -38,6 +38,13 @@ class QuestionId(str, Enum):
     Q6 = "Q6"
 
 
+class SensitivityMode(str, Enum):
+    SMART = "smart"
+    BALANCED = "balanced"
+    STRICT = "strict"
+    CUSTOM = "custom"
+
+
 class PlagiarismCaseModel(BaseModel):
     id: str
     questionId: QuestionId
@@ -84,6 +91,11 @@ class GradingSettings(BaseModel):
     ignore_variable_names: Optional[bool] = None
     normalize_whitespace: Optional[bool] = None
     tokenization_enabled: Optional[bool] = None
+    sensitivity_mode: Optional[SensitivityMode] = None
+    ignore_function_names: Optional[bool] = None
+    ignore_type_names: Optional[bool] = None
+    ignore_string_literals: Optional[bool] = None
+    ignore_numeric_literals: Optional[bool] = None
 
 
 class SubmissionValidationError(Exception):
@@ -141,6 +153,11 @@ async def upload(
     ignore_variable_names: Optional[bool] = Query(None),
     normalize_whitespace: Optional[bool] = Query(None),
     tokenization_enabled: Optional[bool] = Query(None),
+    sensitivity_mode: Optional[SensitivityMode] = Query(None),
+    ignore_function_names: Optional[bool] = Query(None),
+    ignore_type_names: Optional[bool] = Query(None),
+    ignore_string_literals: Optional[bool] = Query(None),
+    ignore_numeric_literals: Optional[bool] = Query(None),
 ) -> UploadResponse:
     print("DEBUG: Upload request received!", flush=True)
 
@@ -150,6 +167,11 @@ async def upload(
         ignore_variable_names=ignore_variable_names,
         normalize_whitespace=normalize_whitespace,
         tokenization_enabled=tokenization_enabled,
+        sensitivity_mode=sensitivity_mode,
+        ignore_function_names=ignore_function_names,
+        ignore_type_names=ignore_type_names,
+        ignore_string_literals=ignore_string_literals,
+        ignore_numeric_literals=ignore_numeric_literals,
     )
 
     try:
