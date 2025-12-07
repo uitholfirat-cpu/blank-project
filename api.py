@@ -137,6 +137,11 @@ FRONTEND_BUILD_DIR = os.path.join(os.path.dirname(__file__), "out")
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
+# Keep a reference to the last successfully processed batch directory so we can
+# re-run the grading pipeline with different settings without re-uploading.
+_last_batch_dir: Optional[str] = None
+_last_batch_root_dir: Optional[str] = None
+
 
 @app.exception_handler(404)
 async def custom_404_handler(request, exc):
@@ -179,6 +184,9 @@ async def upload(
     )
 
     try:
+        # Process a brand-new upload. This will create a fresh working directory,
+        # clean up any previous batch directory, and persist the new paths for
+        # potential re-analysis.
         return process_submission_batch(
             file_stream=file.file,
             filename=file.filename or "submissions.zip",
@@ -248,11 +256,68 @@ def _apply_settings_from_request(settings: GradingSettings) -> None:
         config.Config.TOKENIZATION_ENABLED = settings.tokenization_enabled
 
 
+def _run_grading_for_root(
+    *,
+    root_dir: str,
+    output_dir: str,
+    settings: GradingSettings,
+    batch_id: str,
+) -> UploadResponse:
+    """
+    Shared grading pipeline used by both /upload (fresh ZIP) and /reanalyze
+    (reuse last extracted batch).
+    """
+    snapshot = _snapshot_config()
+    try:
+        _apply_settings_from_request(settings)
+
+        grader = MasterGrader(
+            root_dir=root_dir,
+            output_dir=output_dir,
+            threshold=config.Config.SIMILARITY_THRESHOLD,
+            template_path=config.Config.TEMPLATE_CODE_PATH,
+            ignore_comments=settings.ignore_comments,
+            ignore_variable_names=settings.ignore_variable_names,
+            normalize_whitespace=settings.normalize_whitespace,
+            tokenization_enabled=settings.tokenization_enabled,
+        )
+
+        try:
+            success = grader.run()
+        except Exception as exc:
+            raise GradingEngineError(f"Grading engine raised an error: {exc}") from exc
+
+        if not success:
+            raise GradingEngineError("Grading engine reported failure for this batch.")
+
+        # Build JSON response matching the frontend's expected data structure
+        plagiarism_cases = _build_plagiarism_cases(grader)
+        dashboard_stats = _build_dashboard_stats(grader, plagiarism_cases)
+        grade_distribution = _build_grade_distribution(grader, plagiarism_cases)
+        originality_stats = _build_originality_stats(grader, plagiarism_cases)
+
+        processing_errors = _build_processing_errors(grader.log_entries)
+        report_files = _persist_report_files(batch_id)
+
+        return UploadResponse(
+            plagiarismCases=plagiarism_cases,
+            dashboardStats=dashboard_stats,
+            gradeDistribution=grade_distribution,
+            originalityStats=originality_stats,
+            processingErrors=processing_errors,
+            reportFiles=report_files,
+        )
+    finally:
+        _restore_config(snapshot)
+
+
 def process_submission_batch(
     file_stream: BinaryIO,
     filename: str,
     settings: GradingSettings,
 ) -> UploadResponse:
+    global _last_batch_dir, _last_batch_root_dir
+
     safe_name = os.path.basename(filename) or "submissions.zip"
 
     if not safe_name.lower().endswith(".zip"):
@@ -260,102 +325,86 @@ def process_submission_batch(
 
     batch_id = uuid.uuid4().hex
 
-    with tempfile.TemporaryDirectory(prefix="mastergrader_") as work_dir:
-        upload_path = os.path.join(work_dir, safe_name)
-
-        # Save uploaded file to disk
+    # Clean up the previous batch directory only when a NEW upload starts.
+    if _last_batch_dir and os.path.isdir(_last_batch_dir):
         try:
-            try:
-                file_stream.seek(0)
-            except Exception:
-                # Not all streams are seekable; ignore if seeking fails
-                pass
-
-            with open(upload_path, "wb") as buffer:
-                shutil.copyfileobj(file_stream, buffer)
-        except Exception as exc:
-            raise SubmissionValidationError(f"Failed to save uploaded file: {exc}") from exc
-
-        root_dir = os.path.join(work_dir, "root")
-        os.makedirs(root_dir, exist_ok=True)
-
-        # Extract the uploaded ZIP to a temporary root directory
-        try:
-            with zipfile.ZipFile(upload_path, "r") as zf:
-                if not zf.infolist():
-                    raise SubmissionValidationError("Uploaded zip archive is empty.")
-                zf.extractall(root_dir)
-        except SubmissionValidationError:
-            raise
-        except zipfile.BadZipFile as exc:
-            raise SubmissionValidationError(f"Uploaded file is not a valid zip archive: {exc}") from exc
-        except Exception as exc:
-            raise SubmissionValidationError(f"Failed to extract uploaded archive: {exc}") from exc
-
-        # If the archive contains a single top-level directory, treat that as ROOT_DIR
-        try:
-            entries = [os.path.join(root_dir, name) for name in os.listdir(root_dir)]
-            top_dirs = [p for p in entries if os.path.isdir(p)]
-            top_files = [p for p in entries if os.path.isfile(p)]
-            if len(top_dirs) == 1 and not top_files:
-                root_dir = top_dirs[0]
+            shutil.rmtree(_last_batch_dir, ignore_errors=True)
         except Exception:
-            # If anything goes wrong here, fall back to using the original root_dir
+            # Best-effort; if cleanup fails we still proceed with a fresh directory.
+            pass
+        _last_batch_dir = None
+        _last_batch_root_dir = None
+
+    work_dir = tempfile.mkdtemp(prefix="mastergrader_")
+    _last_batch_dir = work_dir
+
+    upload_path = os.path.join(work_dir, safe_name)
+
+    # Save uploaded file to disk
+    try:
+        try:
+            file_stream.seek(0)
+        except Exception:
+            # Not all streams are seekable; ignore if seeking fails
             pass
 
-        # Ensure there is at least some content after extraction
-        if not any(os.scandir(root_dir)):
-            raise SubmissionValidationError("No files found after extracting archive.")
+        with open(upload_path, "wb") as buffer:
+            shutil.copyfileobj(file_stream, buffer)
+    except Exception as exc:
+        raise SubmissionValidationError(f"Failed to save uploaded file: {exc}") from exc
 
-        # Use a per-request output directory; MasterGrader will populate this
-        output_dir = os.path.join(work_dir, "organized")
-        os.makedirs(output_dir, exist_ok=True)
+    root_dir = os.path.join(work_dir, "root")
+    os.makedirs(root_dir, exist_ok=True)
 
-        snapshot = _snapshot_config()
-        try:
-            _apply_settings_from_request(settings)
+    # Extract the uploaded ZIP to a temporary root directory
+    try:
+        with zipfile.ZipFile(upload_path, "r") as zf:
+            if not zf.infolist():
+                raise SubmissionValidationError("Uploaded zip archive is empty.")
+            zf.extractall(root_dir)
+    except SubmissionValidationError:
+        raise
+    except zipfile.BadZipFile as exc:
+        raise SubmissionValidationError(f"Uploaded file is not a valid zip archive: {exc}") from exc
+    except Exception as exc:
+        raise SubmissionValidationError(f"Failed to extract uploaded archive: {exc}") from exc
 
-            grader = MasterGrader(
-                root_dir=root_dir,
-                output_dir=output_dir,
-                threshold=config.Config.SIMILARITY_THRESHOLD,
-                template_path=config.Config.TEMPLATE_CODE_PATH,
-                ignore_comments=settings.ignore_comments,
-                ignore_variable_names=settings.ignore_variable_names,
-                normalize_whitespace=settings.normalize_whitespace,
-                tokenization_enabled=settings.tokenization_enabled,
-            )
+    # If the archive contains a single top-level directory, treat that as ROOT_DIR
+    try:
+        entries = [os.path.join(root_dir, name) for name in os.listdir(root_dir)]
+        top_dirs = [p for p in entries if os.path.isdir(p)]
+        top_files = [p for p in entries if os.path.isfile(p)]
+        if len(top_dirs) == 1 and not top_files:
+            root_dir = top_dirs[0]
+    except Exception:
+        # If anything goes wrong here, fall back to using the original root_dir
+        pass
 
-            try:
-                success = grader.run()
-            except Exception as exc:
-                raise GradingEngineError(f"Grading engine raised an error: {exc}") from exc
+    # Ensure there is at least some content after extraction
+    if not any(os.scandir(root_dir)):
+        raise SubmissionValidationError("No files found after extracting archive.")
 
-            if not success:
-                raise GradingEngineError("Grading engine reported failure for this batch.")
+    _last_batch_root_dir = root_dir
 
-            # Build JSON response matching the frontend's expected data structure
-            plagiarism_cases = _build_plagiarism_cases(grader)
-            dashboard_stats = _build_dashboard_stats(grader, plagiarism_cases)
-            grade_distribution = _build_grade_distribution(grader, plagiarism_cases)
-            originality_stats = _build_originality_stats(grader, plagiarism_cases)
+    # Use a per-request output directory; MasterGrader will populate this
+    output_dir = os.path.join(work_dir, "organized")
+    os.makedirs(output_dir, exist_ok=True)
 
-            processing_errors = _build_processing_errors(grader.log_entries)
-            report_files = _persist_report_files(batch_id)
-
-            return UploadResponse(
-                plagiarismCases=plagiarism_cases,
-                dashboardStats=dashboard_stats,
-                gradeDistribution=grade_distribution,
-                originalityStats=originality_stats,
-                processingErrors=processing_errors,
-                reportFiles=report_files,
-            )
-        finally:
-            _restore_config(snapshot)
+    return _run_grading_for_root(
+        root_dir=root_dir,
+        output_dir=output_dir,
+        settings=settings,
+        batch_id=batch_id,
+    )
 
 
-def _read_code_file(path: Optional[str]) -> str:
+@app.post("/reanalyze", response_model=UploadResponse)
+async def reanalyze(settings: GradingSettings) -> UploadResponse:
+    """
+    Re-run the grading pipeline on the last uploaded batch using new settings.
+
+    This endpoint does not touch or delete the underlying extracted files. The
+   tr:
     if not path or not os.path.exists(path):
         return ""
     try:

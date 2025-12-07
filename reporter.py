@@ -31,48 +31,48 @@ class Reporter:
             return
 
         print("\n" + "=" * 80)
-        print("📊 Plagiarism detection summary")
+        print("[SUMMARY] Plagiarism detection summary")
         print("=" * 80)
 
         total_cases = statistics.get("total_cases", 0)
-        print("\n📈 Overall statistics:")
-        print(f"  • Total potential plagiarism cases: {total_cases}")
+        print("\n[STATS] Overall statistics:")
+        print(f"  - Total potential plagiarism cases: {total_cases}")
 
         by_question = statistics.get("by_question") or {}
         if by_question:
-            print("\n📝 Cases by question:")
+            print("\n[STATS] Cases by question:")
             for question_num in sorted(by_question.keys()):
                 count = by_question[question_num]
-                print(f"  • Question {question_num}: {count} case(s)")
+                print(f"  - Question {question_num}: {count} case(s)")
 
         similarity_dist = statistics.get("similarity_distribution") or {}
         if similarity_dist:
-            print("\n📊 Similarity distribution:")
+            print("\n[STATS] Similarity distribution:")
             for range_name, count in similarity_dist.items():
                 if count > 0:
-                    print(f"  • {range_name}%: {count} case(s)")
+                    print(f"  - {range_name}%: {count} case(s)")
 
         by_student = statistics.get("by_student") or {}
         if by_student:
-            print("\n⚠ Students with the most flagged pairs:")
+            print("\n[WARN] Students with the most flagged pairs:")
             sorted_students = sorted(
                 by_student.items(), key=lambda x: x[1], reverse=True
             )[:10]
             for student_id, count in sorted_students:
-                print(f"  • {student_id}: {count} case(s)")
+                print(f"  - {student_id}: {count} case(s)")
 
         clusters = statistics.get("clusters") or {}
         if clusters:
-            print("\n🔗 Detected plagiarism clusters:")
+            print("\n[INFO] Detected plagiarism clusters:")
             for cluster in clusters:
                 students_str = ", ".join(cluster["students"])
                 print(
-                    f"  • Cluster #{cluster['cluster_id']}: "
-                    f"{cluster['size']} students – [{students_str}]"
+                    f"  - Cluster #{cluster['cluster_id']}: "
+                    f"{cluster['size']} students - [{students_str}]"
                 )
 
         if plagiarism_cases:
-            print("\n🔍 Sample of detected cases (first 10):")
+            print("\n[INFO] Sample of detected cases (first 10):")
             print("-" * 80)
             print(
                 f"{'Question':<8} {'Student 1':<15} "
@@ -123,14 +123,14 @@ class Reporter:
                 f.write("\n" + "=" * 80 + "\n\n")
 
                 total_cases = statistics.get("total_cases", 0)
-                f.write("📈 Overall statistics:\n")
+                f.write("[STATS] Overall statistics:\n")
                 f.write(
                     f"  Total potential plagiarism cases: {total_cases}\n\n"
                 )
 
                 by_question = statistics.get("by_question") or {}
                 if by_question:
-                    f.write("📝 Cases by question:\n")
+                    f.write("[STATS] Cases by question:\n")
                     for question_num in sorted(by_question.keys()):
                         count = by_question[question_num]
                         f.write(f"  Question {question_num}: {count} case(s)\n")
@@ -166,11 +166,11 @@ class Reporter:
                             f"{case['similarity']:.2f}%\n"
                         )
 
-            print(f"✓ Detailed text report saved: {report_path}")
+            print(f"[OK] Detailed text report saved: {report_path}")
             return True
 
         except Exception as exc:  # pragma: no cover - defensive logging
-            print(f"✗ Error generating detailed report: {exc}")
+            print(f"[ERROR] Error generating detailed{exc}")
             return False
 
     def generate_html_diff(self, case: Dict) -> Optional[str]:
@@ -220,7 +220,7 @@ class Reporter:
         """
         generated_count = 0
 
-        print("\n🌐 Generating HTML diff reports...")
+        print("\n[STEP] Generating HTML diff reports...")
 
         for case in plagiarism_cases:
             html_path = self.generate_html_diff(case)
@@ -228,7 +228,7 @@ class Reporter:
                 case["html_report"] = html_path
                 generated_count += 1
 
-        print(f"  ✓ {generated_count} HTML file(s) generated")
+        print(f"  [OK] {generated_count} HTML file(s) generated")
         return generated_count
 
     def generate_csv_report(
@@ -279,7 +279,7 @@ class Reporter:
                         }
                     )
 
-            print(f"\n✓ CSV plagiarism report saved: {self.report_file}")
+            print(f"\n[OK] CSV plagiarism report saved: {self.report_file}")
 
             if statistics and statistics.get("clusters"):
                 clusters_file = os.path.join(
@@ -305,12 +305,12 @@ class Reporter:
                             }
                         )
 
-                print(f"✓ Cluster report saved: {clusters_file}")
+                print(f"[OK] Cluster report saved: {clusters_file}")
 
             return True
 
         except Exception as exc:  # pragma: no cover - defensive logging
-            print(f"\n✗ Error generating CSV report: {exc}")
+            print(f"\n[ERROR] Error generating CSV report: {exc}")
             return False
 
     def generate_all_reports(
@@ -322,7 +322,7 @@ class Reporter:
         Run the full reporting pipeline: console summary, HTML, CSV, and text.
         """
         print("\n" + "=" * 60)
-        print("📄 [STEP] Generating reports")
+        print("[STEP] Generating reports")
         print("=" * 60)
 
         self.print_console_summary(plagiarism_cases, statistics)
@@ -347,9 +347,9 @@ def write_log_file(log_entries: List[Dict]) -> None:
             )
 
             if not log_entries:
-                f.write("✓ No errors were recorded.\n")
+                f.write("No errors were recorded.\n")
             else:
-                f.write(f"⚠ Number of errors: {len(log_entries)}\n\n")
+                f.write(f"Number of errors: {len(log_entries)}\n\n")
 
                 for entry in log_entries:
                     message = entry.get("message", "Unknown error")
@@ -363,7 +363,7 @@ def write_log_file(log_entries: List[Dict]) -> None:
                         f.write(f"  File: {file_path}\n")
                     f.write("\n")
 
-        print(f"✓ Log file saved: {log_file}")
+        print(f"[ Log file saved: {log_file}")
 
     except Exception as exc:  # pragma: no cover - defensive logging
         print(f"✗ Error writing log file: {exc}")

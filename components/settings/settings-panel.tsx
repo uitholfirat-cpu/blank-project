@@ -7,6 +7,7 @@ import {
   useSettings,
   type EngineSettings
 } from "@/components/settings/settings-context";
+import { useReport } from "@/components/report-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -18,7 +19,11 @@ type SensitivityMode = EngineSettings["sensitivityMode"];
 
 export function SettingsPanel() {
   const { settings, setSettings } = useSettings();
+  const { setReportData } = useReport();
   const [templateFileName, setTemplateFileName] = useState<string | null>(null);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const currentMode: SensitivityMode = settings.sensitivityMode;
   const isCustomMode = currentMode === "custom";
@@ -80,6 +85,69 @@ export function SettingsPanel() {
       : currentMode === "custom"
       ? "Manual sensitivity configuration"
       : "Balanced defaults (recommended)";
+
+  const handleReanalyze = async () => {
+    setStatusMessage(null);
+    setStatusError(null);
+    setIsReanalyzing(true);
+
+    const payload = {
+      threshold: settings.threshold,
+      ignore_comments: settings.ignoreComments,
+      ignore_variable_names: settings.ignoreVariableNames,
+      normalize_whitespace: undefined,
+      tokenization_enabled: undefined,
+      sensitivity_mode: settings.sensitivityMode,
+      ignore_function_names: settings.ignoreFunctionNames,
+      ignore_type_names: settings.ignoreTypeNames,
+      ignore_string_literals: settings.ignoreStringLiterals,
+      ignore_numeric_literals: settings.ignoreNumericLiterals,
+    };
+
+    const reanalyzeUrl =
+      process.env.NODE_ENV === "development"
+        ? "http://localhost:8000/reanalyze"
+        : "/reanalyze";
+
+    try {
+      const response = await fetch(reanalyzeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let message = "Re-analysis failed. Please upload a ZIP file first.";
+        try {
+          const json = (await response.json()) as {
+            detail?: { message?: string } | string;
+          };
+          if (json && typeof json.detail === "object") {
+            message = json.detail.message ?? message;
+          } else if (typeof json.detail === "string") {
+            message = json.detail;
+          }
+        } catch {
+          // Ignore JSON parsing issues and fall back to default.
+        }
+        throw new Error(message);
+      }
+
+      const data = (await response.json()) as import("@/components/report-context").ReportData;
+      setReportData(data);
+      setStatusMessage("Analysis updated!");
+    } catch (err) {
+      setStatusError(
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred while updating analysis.",
+      );
+    } finally {
+      setIsReanalyzing(false);
+    }
+  };
 
   return (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,_1.6fr)_minmax(0,_1.1fr)]">
@@ -318,6 +386,28 @@ export function SettingsPanel() {
             Python backend so the same template is excluded from similarity across
             all questions.
           </p>
+          <div className="flex items-center justify-between pt-2 text-[0.7rem]">
+            <button
+              type="button"
+              onClick={handleReanalyze}
+              disabled={isReanalyzing}
+              className="inline-flex items-center rounded-md border border-border/80 bg-background px-3 py-1.5 text-[0.75rem] font-medium text-foreground shadow-sm hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isReanalyzing ? "Re-analyzing…" : "Save &amp; Re-analyze"}
+            </button>
+            <div className="min-h-[1.25rem] text-right">
+              {statusMessage && (
+                <span className="text-[0.7rem] font-medium text-emerald-600 dark:text-emerald-300">
+                  {statusMessage}
+                </span>
+              )}
+              {statusError && (
+                <span className="text-[0.7rem] font-medium text-destructive">
+                  {statusError}
+                </span>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </section>
