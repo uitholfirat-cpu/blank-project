@@ -20,15 +20,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen bg-background text-foreground antialiased">
+      <body className="h-screen overflow-hidden bg-background text-foreground antialiased">
         <ThemeProvider>
           <SettingsProvider>
             <ReportProvider>
-              <div className="flex min-h-screen flex-col md:flex-row">
+              <div className="flex h-screen flex-col md:flex-row">
                 <Sidebar />
-                <div className="flex min-h-screen flex-1 flex-col">
+                <div className="flex h-screen flex-1 flex-col overflow-hidden md:pl-64 lg:pl-72">
                   <Topbar />
-                  <main className="flex-1 px-4 pb-8 pt-4 md:px-6 md:pt-6">
+                  <main className="flex-1 overflow-y-auto px-4 pb-8 pt-14 md:px-6 md:pt-20">
                     {children}
                   </main>
                 </div>

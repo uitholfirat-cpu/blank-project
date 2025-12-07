@@ -175,7 +175,7 @@ export function Sidebar() {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="app-sidebar">
+      <aside className="fixed left-0 top-0 z-20 hidden h-screen border-r bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/70 md:flex md:w-64 lg:w-72">
         <div className="flex h-full w-full flex-col p-3">
           <SidebarNav pathname={pathname} />
         </div>

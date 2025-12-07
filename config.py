@@ -5,6 +5,123 @@
 
 import os
 from pathlib import Path
+from typing import Optional
+from dataclasses import dataclass, field
+
+
+@dataclass
+class SensitivityConfig:
+    """
+    کلاس تنظیمات حساسیت پیشرفته برای تشخیص تقلب.
+    
+    این کلاس امکان کنترل دقیق و گرانولار بر روی نحوه تشخیص تقلب را فراهم می‌کند.
+    استاد می‌تواند برای هر عنصر کد به صورت جداگانه تصمیم بگیرد که آیا نادیده گرفته شود یا خیر.
+    """
+    # تنظیمات شناسه‌ها (Identifiers)
+    ignore_variable_names: bool = False  # نادیده گرفتن نام متغیرها
+    ignore_function_names: bool = False  # نادیده گرفتن نام توابع
+    ignore_type_names: bool = False  # نادیده گرفتن نام انواع (struct, typedef, etc.)
+    
+    # تنظیمات مقادیر (Literals)
+    ignore_string_literals: bool = False  # نادیده گرفتن رشته‌های متنی
+    ignore_numeric_literals: bool = False  # نادیده گرفتن اعداد
+    
+    # تنظیمات ساختاری (Structural)
+    normalize_whitespace: bool = True  # نرمال‌سازی فاصله‌ها
+    remove_comments: bool = True  # حذف کامنت‌ها
+    remove_includes: bool = True  # حذف #include ها
+    
+    # تنظیمات پیشرفته
+    ignore_operator_spacing: bool = True  # نادیده گرفتن فاصله اطراف عملگرها
+    ignore_bracket_style: bool = True  # نادیده گرفتن سبک آکولاد (کدام خط)
+    
+    @classmethod
+    def smart(cls) -> 'SensitivityConfig':
+        """حالت هوشمند: تشخیص تقلب حتی با تغییر نام متغیرها و توابع"""
+        return cls(
+            ignore_variable_names=True,
+            ignore_function_names=True,
+            ignore_type_names=False,
+            ignore_string_literals=False,
+            ignore_numeric_literals=False,
+            normalize_whitespace=True,
+            remove_comments=True,
+            remove_includes=True,
+            ignore_operator_spacing=True,
+            ignore_bracket_style=True,
+        )
+    
+    @classmethod
+    def balanced(cls) -> 'SensitivityConfig':
+        """حالت متعادل: فقط نام متغیرها نادیده گرفته می‌شود"""
+        return cls(
+            ignore_variable_names=True,
+            ignore_function_names=False,
+            ignore_type_names=False,
+            ignore_string_literals=False,
+            ignore_numeric_literals=False,
+            normalize_whitespace=True,
+            remove_comments=True,
+            remove_includes=True,
+            ignore_operator_spacing=True,
+            ignore_bracket_style=True,
+        )
+    
+    @classmethod
+    def strict(cls) -> 'SensitivityConfig':
+        """حالت سخت‌گیرانه: فقط کدهای کاملاً یکسان تشخیص داده می‌شوند"""
+        return cls(
+            ignore_variable_names=False,
+            ignore_function_names=False,
+            ignore_type_names=False,
+            ignore_string_literals=False,
+            ignore_numeric_literals=False,
+            normalize_whitespace=True,
+            remove_comments=True,
+            remove_includes=True,
+            ignore_operator_spacing=True,
+            ignore_bracket_style=True,
+        )
+    
+    @classmethod
+    def custom(
+        cls,
+        ignore_variable_names: Optional[bool] = None,
+        ignore_function_names: Optional[bool] = None,
+        ignore_type_names: Optional[bool] = None,
+        ignore_string_literals: Optional[bool] = None,
+        ignore_numeric_literals: Optional[bool] = None,
+        normalize_whitespace: Optional[bool] = None,
+        remove_comments: Optional[bool] = None,
+        remove_includes: Optional[bool] = None,
+        ignore_operator_spacing: Optional[bool] = None,
+        ignore_bracket_style: Optional[bool] = None,
+    ) -> 'SensitivityConfig':
+        """ایجاد تنظیمات شخصی‌سازی شده"""
+        base = cls.smart()  # استفاده از Smart به عنوان پایه
+        
+        if ignore_variable_names is not None:
+            base.ignore_variable_names = ignore_variable_names
+        if ignore_function_names is not None:
+            base.ignore_function_names = ignore_function_names
+        if ignore_type_names is not None:
+            base.ignore_type_names = ignore_type_names
+        if ignore_string_literals is not None:
+            base.ignore_string_literals = ignore_string_literals
+        if ignore_numeric_literals is not None:
+            base.ignore_numeric_literals = ignore_numeric_literals
+        if normalize_whitespace is not None:
+            base.normalize_whitespace = normalize_whitespace
+        if remove_comments is not None:
+            base.remove_comments = remove_comments
+        if remove_includes is not None:
+            base.remove_includes = remove_includes
+        if ignore_operator_spacing is not None:
+            base.ignore_operator_spacing = ignore_operator_spacing
+        if ignore_bracket_style is not None:
+            base.ignore_bracket_style = ignore_bracket_style
+        
+        return base
 
 
 class Config:
@@ -44,7 +161,23 @@ class Config:
     NORMALIZE_WHITESPACE = True  # نرمال‌سازی فاصله‌های خالی
     REMOVE_COMMENTS = True  # حذف کامنت‌ها
     REMOVE_INCLUDES = True  # حذف #include ها
-    IGNORE_VARIABLES = False  # در صورت True، نام متغیرها در مقایسه نادیده گرفته می‌شود
+    IGNORE_VARIABLES = False  # در صورت True، نام متغیرها در مقایسه نادیده گرفته می‌شود (برای سازگاری با نسخه قدیم)
+    
+    # تنظیمات حساسیت پیشرفته (Advanced Sensitivity Settings)
+    # استفاده از حالت متعادل به عنوان پیش‌فرض
+    _sensitivity_config: Optional[SensitivityConfig] = None
+    
+    @classmethod
+    def get_sensitivity_config(cls) -> SensitivityConfig:
+        """دریافت تنظیمات حساسیت (با مقدار پیش‌فرض)"""
+        if cls._sensitivity_config is None:
+            cls._sensitivity_config = SensitivityConfig.balanced()
+        return cls._sensitivity_config
+    
+    @classmethod
+    def set_sensitivity_config(cls, config: SensitivityConfig):
+        """تنظیم پیکربندی حساسیت"""
+        cls._sensitivity_config = config
     
     # ==============================
     # تنظیمات گزارش‌دهی (Reporting)

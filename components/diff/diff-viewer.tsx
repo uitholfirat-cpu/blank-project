@@ -206,14 +206,14 @@ function CodePane({
           </span>
         </div>
       </header>
-      <div className="relative max-h-[520px] overflow-auto bg-muted/30">
+      <div className="relative max-h-[520px] overflow-auto bg-muted/30 allow-select">
         {/* تغییر ۳: حذف {...defaultProps} */}
         <Highlight theme={theme} code={code} language={cLanguage}>
           {({ className, style, tokens, getLineProps, getTokenProps }) => (
             <pre
               className={cn(
                 className,
-                "m-0 min-h-full w-full bg-transparent p-3 text-[11px] leading-relaxed"
+                "m-0 min-h-full w-full bg-transparent p-3 text-[11px] leading-relaxed allow-select"
               )}
               style={style}
             >

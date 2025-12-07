@@ -91,11 +91,15 @@ class GradingSettings(BaseModel):
     ignore_variable_names: Optional[bool] = None
     normalize_whitespace: Optional[bool] = None
     tokenization_enabled: Optional[bool] = None
-    sensitivity_mode: Optional[SensitivityMode] = None
+    
+    # Advanced sensitivity settings (برای شخصی‌سازی پیشرفته)
+    sensitivity_mode: Optional[str] = None  # "smart", "balanced", "strict", "custom"
     ignore_function_names: Optional[bool] = None
     ignore_type_names: Optional[bool] = None
     ignore_string_literals: Optional[bool] = None
     ignore_numeric_literals: Optional[bool] = None
+    ignore_operator_spacing: Optional[bool] = None
+    ignore_bracket_style: Optional[bool] = None
 
 
 class SubmissionValidationError(Exception):

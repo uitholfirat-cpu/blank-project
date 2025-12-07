@@ -42,7 +42,14 @@ def main() -> None:
     # Give the API server a moment to start up
     wait_for_server(HOST, PORT, timeout=15.0)
 
-    webview.create_window("MasterGrader", f"http://{HOST}:{PORT}")
+    webview.create_window(
+        "MasterGrader",
+        f"http://{HOST}:{PORT}",
+        width=1280,
+        height=850,
+        min_size=(1024, 768),
+        resizable=True
+    )
     webview.start()
 
 
