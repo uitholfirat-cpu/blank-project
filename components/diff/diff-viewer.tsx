@@ -3,9 +3,7 @@
 import * as React from "react";
 import { useMemo, useState } from "react";
 import { ArrowLeft, GitCompare, Sparkles } from "lucide-react";
-// تغییر ۱: ایمپورت کردن Highlight و themes به صورت named import
-import { Highlight, themes, type Language } from "prism-react-renderer";
-import { useTheme } from "next-themes";
+import { diffLines, diffWords, type Change } from "diff";
 
 import { useSettings } from "@/components/settings/settings-context";
 import { Badge } from "@/components/ui/badge";
@@ -21,32 +19,39 @@ type DiffViewerProps = {
   onBack?: () => void;
 };
 
-type LineMatchKind = "none" | "exact" | "structural";
+type RowKind = "exact" | "structural" | "left-only" | "right-only" | "mismatch";
 
-type LineMeta = {
-  isTemplate: boolean;
-  matchKind: LineMatchKind;
+type TokenKind = "unchanged" | "added" | "removed";
+
+type DiffToken = {
+  value: string;
+  kind: TokenKind;
 };
 
-type SideMeta = LineMeta[];
+type DiffCell = {
+  lineNumber: number | null;
+  text: string;
+  tokens: DiffToken[];
+  isTemplate: boolean;
+};
 
-const cLanguage = "c" as Language;
+type DiffRow = {
+  left: DiffCell | null;
+  right: DiffCell | null;
+  kind: RowKind;
+};
 
 export function DiffViewer({ pair, template, onBack }: DiffViewerProps) {
   const { settings } = useSettings();
-  const { resolvedTheme } = useTheme();
   const [dimTemplate, setDimTemplate] = useState(true);
   const [highlightMatches, setHighlightMatches] = useState(true);
 
-  // تغییر ۲: استفاده از آبجکت themes برای دسترسی به تم‌ها
-  const theme = resolvedTheme === "light" ? themes.github : themes.nightOwl;
-
-  const { leftMeta, rightMeta } = useMemo(
+  const rows = useMemo(
     () =>
-      computeDiffMetadata(pair.codeA, pair.codeB, template, {
+      buildDiffRows(pair.codeA, pair.codeB, template, {
         ignoreComments: settings.ignoreComments,
         ignoreVariableNames: settings.ignoreVariableNames,
-        functionSorting: settings.functionSorting
+        functionSorting: settings.functionSorting,
       }),
     [
       pair.codeA,
@@ -54,8 +59,8 @@ export function DiffViewer({ pair, template, onBack }: DiffViewerProps) {
       template,
       settings.ignoreComments,
       settings.ignoreVariableNames,
-      settings.functionSorting
-    ]
+      settings.functionSorting,
+    ],
   );
 
   return (
@@ -134,154 +139,179 @@ export function DiffViewer({ pair, template, onBack }: DiffViewerProps) {
             className="inline-flex h-3 w-3 rounded-[3px] bg-emerald-500"
             aria-hidden="true"
           />
-          <span>🟩 Exact copy (character-for-character)</span>
+          <span>🟩 Exact match (character-for-character)</span>
         </div>
         <div className="inline-flex items-center gap-1.5">
           <span
             className="inline-flex h-3 w-3 rounded-[3px] bg-amber-400"
             aria-hidden="true"
           />
-          <span>🟨 Renamed variables / whitespace (structural)</span>
+          <span>🟨 Structural match (renamed variables, formatting-only changes)</span>
         </div>
         <div className="inline-flex items-center gap-1.5">
           <span
-            className="inline-flex h-3 w-3 rounded-[3px] border border-border bg-background"
+            className="inline-flex h-3 w-3 rounded-[3px] bg-red-500"
             aria-hidden="true"
           />
-          <span>⬜ Original or unmatched code</span>
+          <span
+            className="inline-flex h-3 w-3 rounded-[3px] bg-emerald-500"
+            aria-hidden="true"
+          />
+          <span>🟥/🟩 Content mismatch (removed / added code)</span>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <CodePane
-          title={`Student A – ${pair.studentA}`}
-          code={pair.codeA}
-          meta={leftMeta}
-          template={template}
-          dimTemplate={dimTemplate}
-          highlightMatches={highlightMatches}
-          theme={theme}
-        />
-        <CodePane
-          title={`Student B – ${pair.studentB}`}
-          code={pair.codeB}
-          meta={rightMeta}
-          template={template}
-          dimTemplate={dimTemplate}
-          highlightMatches={highlightMatches}
-          theme={theme}
-        />
+      <div className="flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-soft-card">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] border-b border-border/80 text-[0.7rem]">
+          <div className="px-3 py-2 font-semibold">
+            Student A &ndash; {pair.studentA}
+          </div>
+          <div className="flex items-center justify-center px-2 py-2 text-muted-foreground">
+            Lines
+          </div>
+          <div className="px-3 py-2 text-right font-semibold">
+            Student B &ndash; {pair.studentB}
+          </div>
+        </header>
+        <div className="max-h-[520px] overflow-auto bg-muted/30 text-[11px] font-mono allow-select">
+          {rows.map((row, index) => (
+            <div
+              key={index}
+              className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] border-b border-border/40 last:border-b-0"
+            >
+              <DiffCellView
+                side="left"
+                rowKind={row.kind}
+                cell={row.left}
+                dimTemplate={dimTemplate}
+                highlightMatches={highlightMatches}
+              />
+              <div className="flex flex-col items-center justify-center px-2 py-[1px] text-[0.65rem] text-muted-foreground">
+                <span className="tabular-nums">
+                  {row.left?.lineNumber ?? ""}
+                </span>
+                <span className="tabular-nums">
+                  {row.right?.lineNumber ?? ""}
+                </span>
+              </div>
+              <DiffCellView
+                side="right"
+                rowKind={row.kind}
+                cell={row.right}
+                dimTemplate={dimTemplate}
+                highlightMatches={highlightMatches}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-function CodePane({
-  title,
-  code,
-  meta,
-  template,
+function DiffCellView({
+  side,
+  rowKind,
+  cell,
   dimTemplate,
   highlightMatches,
-  theme
 }: {
-  title: string;
-  code: string;
-  meta: SideMeta;
-  template: string;
+  side: "left" | "right";
+  rowKind: RowKind;
+  cell: DiffCell | null;
   dimTemplate: boolean;
   highlightMatches: boolean;
-  theme: any;
 }) {
-  const templateLines = template.split("\n").length;
+  const isTemplate = cell?.isTemplate ?? false;
+
+  const baseClasses =
+    "relative flex min-h-[1.1rem] items-stretch whitespace-pre-wrap break-words px-3 py-[1px]";
+
+  const classes = cn(
+    baseClasses,
+    !cell && "bg-muted/20",
+    cell &&
+      isTemplate &&
+      dimTemplate &&
+      "bg-muted/40 text-muted-foreground",
+    cell &&
+      highlightMatches &&
+      rowKind === "exact" &&
+      "bg-emerald-500/10 border-l-2 border-emerald-500/70",
+    cell &&
+      highlightMatches &&
+      rowKind === "structural" &&
+      "bg-amber-500/10 border-l-2 border-amber-500/70",
+    cell &&
+      !isTemplate &&
+      rowKind === "left-only" &&
+      side === "left" &&
+      "bg-red-500/10 border-l-2 border-red-500/70",
+    cell &&
+      !isTemplate &&
+      rowKind === "right-only" &&
+      side === "right" &&
+      "bg-emerald-500/10 border-l-2 border-emerald-500/70",
+    cell &&
+      !isTemplate &&
+      rowKind === "mismatch" &&
+      side === "left" &&
+      "bg-red-500/10 border-l-2 border-red-500/70",
+    cell &&
+      !isTemplate &&
+      rowKind === "mismatch" &&
+      side === "right" &&
+      "bg-emerald-500/10 border-l-2 border-emerald-500/70",
+    cell &&
+      !isTemplate &&
+      rowKind === "exact" &&
+      !highlightMatches &&
+      "hover:bg-muted/40",
+  );
+
+  if (!cell) {
+    return <div className={classes} />;
+  }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card/95 shadow-soft-card">
-      <header className="flex items-center justify-between border-b border-border/80 px-3 py-2 text-xs">
-        <div className="flex flex-col">
-          <span className="font-semibold">{title}</span>
-          <span className="text-[0.7rem] text-muted-foreground">
-            Lines of code: {code.split("\n").length} • template baseline:{" "}
-            {templateLines} lines
+    <div className={classes}>
+      <pre className="m-0 w-full whitespace-pre-wrap break-words">
+        {cell.tokens.map((token, idx) => (
+          <span
+            key={idx}
+            className={cn(
+              token.kind === "unchanged" && "",
+              rowKind === "structural" &&
+                token.kind !== "unchanged" &&
+                highlightMatches &&
+                "font-semibold bg-amber-500/30 text-amber-900 dark:bg-amber-500/40 dark:text-amber-50",
+              rowKind !== "structural" &&
+                token.kind === "removed" &&
+                side === "left" &&
+                "font-semibold bg-red-500/30 text-red-900 dark:bg-red-500/40 dark:text-red-50",
+              rowKind !== "structural" &&
+                token.kind === "added" &&
+                side === "right" &&
+                "font-semibold bg-emerald-500/30 text-emerald-900 dark:bg-emerald-500/40 dark:text-emerald-50",
+            )}
+          >
+            {token.value}
           </span>
-        </div>
-      </header>
-      <div className="relative max-h-[520px] overflow-auto bg-muted/30 allow-select">
-        {/* تغییر ۳: حذف {...defaultProps} */}
-        <Highlight theme={theme} code={code} language={cLanguage}>
-          {({ className, style, tokens, getLineProps, getTokenProps }) => (
-            <pre
-              className={cn(
-                className,
-                "m-0 min-h-full w-full bg-transparent p-3 text-[11px] leading-relaxed allow-select"
-              )}
-              style={style}
-            >
-              {tokens.map((line, i) => {
-                const lineMeta =
-                  meta[i] ??
-                  ({
-                    isTemplate: false,
-                    matchKind: "none"
-                  } as LineMeta);
-
-                const isTemplateLine = lineMeta.isTemplate;
-                const matchKind = lineMeta.matchKind ?? "none";
-                const isExactMatch = matchKind === "exact";
-                const isStructuralMatch = matchKind === "structural";
-                const hasMatch = isExactMatch || isStructuralMatch;
-
-                return (
-                  <div
-                    key={i}
-                    {...getLineProps({ line, key: i })}
-                    className={cn(
-                      "flex border-l-2 border-transparent px-2 py-[1px]",
-                      isTemplateLine && dimTemplate && "opacity-60 bg-muted/40",
-                      highlightMatches &&
-                        isExactMatch &&
-                        "border-emerald-500/70 bg-emerald-500/10",
-                      highlightMatches &&
-                        isStructuralMatch &&
-                        "border-amber-500/70 bg-amber-500/10",
-                      !isTemplateLine && !hasMatch && "hover:bg-muted/40"
-                    )}
-                  >
-                    <span className="mr-3 w-10 select-none text-right text-[0.65rem] text-muted-foreground">
-                      {i + 1}
-                    </span>
-                    <span className="flex-1 whitespace-pre">
-                      {line.map((token, key) => (
-                        <span
-                          key={key}
-                          {...getTokenProps({ token, key })}
-                          className={cn(
-                            "transition-colors",
-                            highlightMatches &&
-                              isExactMatch &&
-                              "text-emerald-800 dark:text-emerald-200",
-                            highlightMatches &&
-                              isStructuralMatch &&
-                              "text-amber-800 dark:text-amber-200",
-                            isTemplateLine &&
-                              dimTemplate &&
-                              "text-muted-foreground"
-                          )}
-                        />
-                      ))}
-                    </span>
-                  </div>
-                );
-              })}
-            </pre>
-          )}
-        </Highlight>
-      </div>
+        ))}
+      </pre>
     </div>
   );
 }
 
-function computeDiffMetadata(
+function splitChangeLines(change: Change): string[] {
+  const raw = change.value.split("\n");
+  if (raw.length && raw[raw.length - 1] === "") {
+    raw.pop();
+  }
+  return raw.map((line) => line.replace(/\r$/, ""));
+}
+
+function buildDiffRows(
   codeA: string,
   codeB: string,
   template: string,
@@ -289,72 +319,210 @@ function computeDiffMetadata(
     ignoreComments: boolean;
     ignoreVariableNames: boolean;
     functionSorting: boolean;
-  }
-): { leftMeta: SideMeta; rightMeta: SideMeta } {
+  },
+): DiffRow[] {
   const templateLines = new Set(
     template
       .split("\n")
       .map((l) => l.trim())
-      .filter((l) => l.length > 0)
+      .filter((l) => l.length > 0),
   );
 
-  const linesA = codeA.split("\n");
-  const linesB = codeB.split("\n");
+  const lineDiff = diffLines(codeA, codeB);
 
-  const rawSetA = new Set(linesA.filter((line) => line.trim().length > 0));
-  const rawSetB = new Set(linesB.filter((line) => line.trim().length > 0));
+  let aLine = 1;
+  let bLine = 1;
+  const rows: DiffRow[] = [];
 
-  const normalizedLinesA = linesA.map((line) => normalizeLine(line, opts));
-  const normalizedLinesB = linesB.map((line) => normalizeLine(line, opts));
+  let i = 0;
+  while (i < lineDiff.length) {
+    const change = lineDiff[i];
 
-  const normalizedSetA = new Set(
-    normalizedLinesA.filter((line) => line.length > 0)
-  );
-  const normalizedSetB = new Set(
-    normalizedLinesB.filter((line) => line.length > 0)
-  );
+    if (!change.added && !change.removed) {
+      const lines = splitChangeLines(change);
+      for (const text of lines) {
+        const trimmed = text.trim();
+        const isTemplate = trimmed.length > 0 && templateLines.has(trimmed);
+        const tokens: DiffToken[] = text
+          ? [{ value: text, kind: "unchanged" }]
+          : [];
 
-  const leftMeta: SideMeta = linesA.map((line, index) => {
-    const trimmed = line.trim();
-    const isTemplate = trimmed.length > 0 && templateLines.has(trimmed);
+        const cell: DiffCell = {
+          lineNumber: aLine,
+          text,
+          tokens,
+          isTemplate,
+        };
 
-    let matchKind: LineMatchKind = "none";
+        rows.push({
+          left: cell,
+          right: {
+            lineNumber: bLine,
+            text,
+            tokens: [...tokens],
+            isTemplate,
+          },
+          kind: "exact",
+        });
 
-    if (!isTemplate && trimmed.length > 0) {
-      if (rawSetB.has(line)) {
-        matchKind = "exact";
-      } else {
-        const normalized = normalizedLinesA[index];
-        if (normalized.length > 0 && normalizedSetB.has(normalized)) {
-          matchKind = "structural";
-        }
+        aLine += 1;
+        bLine += 1;
       }
+      i += 1;
+      continue;
     }
 
-    return { isTemplate, matchKind };
-  });
+    if (change.removed && i + 1 < lineDiff.length && lineDiff[i + 1].added) {
+      const removed = splitChangeLines(change);
+      const added = splitChangeLines(lineDiff[i + 1]);
 
-  const rightMeta: SideMeta = linesB.map((line, index) => {
-    const trimmed = line.trim();
-    const isTemplate = trimmed.length > 0 && templateLines.has(trimmed);
+      const maxLen = Math.max(removed.length, added.length);
+      for (let idx = 0; idx < maxLen; idx += 1) {
+        const leftText = removed[idx] ?? "";
+        const rightText = added[idx] ?? "";
 
-    let matchKind: LineMatchKind = "none";
+        const hasLeft = idx < removed.length;
+        const hasRight = idx < added.length;
 
-    if (!isTemplate && trimmed.length > 0) {
-      if (rawSetA.has(line)) {
-        matchKind = "exact";
-      } else {
-        const normalized = normalizedLinesB[index];
-        if (normalized.length > 0 && normalizedSetA.has(normalized)) {
-          matchKind = "structural";
+        let kind: RowKind;
+        if (hasLeft && hasRight) {
+          if (leftText === rightText) {
+            kind = "exact";
+          } else {
+            const normLeft = normalizeLine(leftText, opts);
+            const normRight = normalizeLine(rightText, opts);
+            if (normLeft && normLeft === normRight) {
+              kind = "structural";
+            } else {
+              kind = "mismatch";
+            }
+          }
+        } else if (hasLeft) {
+          kind = "left-only";
+        } else {
+          kind = "right-only";
+        }
+
+        let leftTokens: DiffToken[] = [];
+        let rightTokens: DiffToken[] = [];
+
+        if (hasLeft && hasRight && (kind === "structural" || kind === "mismatch")) {
+          const parts = diffWords(leftText, rightText);
+          for (const part of parts) {
+            if (part.removed) {
+              leftTokens.push({ value: part.value, kind: "removed" });
+            } else if (part.added) {
+              rightTokens.push({ value: part.value, kind: "added" });
+            } else {
+              leftTokens.push({ value: part.value, kind: "unchanged" });
+              rightTokens.push({ value: part.value, kind: "unchanged" });
+            }
+          }
+        } else {
+          if (hasLeft) {
+            leftTokens = leftText
+              ? [{ value: leftText, kind: "unchanged" }]
+              : [];
+          }
+          if (hasRight) {
+            rightTokens = rightText
+              ? [{ value: rightText, kind: "unchanged" }]
+              : [];
+          }
+        }
+
+        const leftCell: DiffCell | null = hasLeft
+          ? {
+              lineNumber: aLine,
+              text: leftText,
+              tokens: leftTokens,
+              isTemplate:
+                leftText.trim().length > 0 &&
+                templateLines.has(leftText.trim()),
+            }
+          : null;
+
+        const rightCell: DiffCell | null = hasRight
+          ? {
+              lineNumber: bLine,
+              text: rightText,
+              tokens: rightTokens,
+              isTemplate:
+                rightText.trim().length > 0 &&
+                templateLines.has(rightText.trim()),
+            }
+          : null;
+
+        rows.push({
+          left: leftCell,
+          right: rightCell,
+          kind,
+        });
+
+        if (hasLeft) {
+          aLine += 1;
+        }
+        if (hasRight) {
+          bLine += 1;
         }
       }
+
+      i += 2;
+      continue;
     }
 
-    return { isTemplate, matchKind };
-  });
+    if (change.removed) {
+      const removed = splitChangeLines(change);
+      for (const text of removed) {
+        const trimmed = text.trim();
+        const tokens: DiffToken[] = text
+          ? [{ value: text, kind: "removed" }]
+          : [];
+        const cell: DiffCell = {
+          lineNumber: aLine,
+          text,
+          tokens,
+          isTemplate: trimmed.length > 0 && templateLines.has(trimmed),
+        };
+        rows.push({
+          left: cell,
+          right: null,
+          kind: "left-only",
+        });
+        aLine += 1;
+      }
+      i += 1;
+      continue;
+    }
 
-  return { leftMeta, rightMeta };
+    if (change.added) {
+      const added = splitChangeLines(change);
+      for (const text of added) {
+        const trimmed = text.trim();
+        const tokens: DiffToken[] = text
+          ? [{ value: text, kind: "added" }]
+          : [];
+        const cell: DiffCell = {
+          lineNumber: bLine,
+          text,
+          tokens,
+          isTemplate: trimmed.length > 0 && templateLines.has(trimmed),
+        };
+        rows.push({
+          left: null,
+          right: cell,
+          kind: "right-only",
+        });
+        bLine += 1;
+      }
+      i += 1;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  return rows;
 }
 
 function normalizeLine(
@@ -363,7 +531,7 @@ function normalizeLine(
     ignoreComments: boolean;
     ignoreVariableNames: boolean;
     functionSorting: boolean;
-  }
+  },
 ): string {
   let trimmed = line.trim();
 
@@ -400,20 +568,18 @@ function normalizeLine(
             "continue",
             "scanf",
             "printf",
-            "main"
+            "main",
           ].includes(match)
         ) {
           return match;
         }
         return "id";
-      }
+      },
     );
   }
 
-  // For demonstration, we do not re-order functions (that would require a parser),
-  // but we keep the flag here to show where such logic would plug in.
   if (opts.functionSorting) {
-    // no-op in mock UI
+    // Reserved for future structural normalization.
   }
 
   return trimmed.replace(/\s+/g, " ");

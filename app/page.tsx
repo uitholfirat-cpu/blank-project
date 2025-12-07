@@ -60,7 +60,7 @@ export default function HomePage() {
                   Strict vs. smart modes, tuned for C coursework.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-1.5 text-[0.75rem] text-muted-foreground">
+              <CardContent className="space-y-1.5 text-[0.75rem] text-muted-foreground min-w-0 break-words">
                 <p>• Structural tokenization that can ignore variable renames.</p>
                 <p>• Comment stripping and whitespace normalization controls.</p>
                 <p>• Per-question thresholds with cluster-level statistics.</p>
@@ -74,7 +74,7 @@ export default function HomePage() {
                   Built to feel like a focused desktop grading console.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-1.5 text-[0.75rem] text-muted-foreground">
+              <CardContent className="space-y-1.5 text-[0.75rem] text-muted-foreground min-w-0 break-words">
                 <p>• Drag-and-drop LMS exports and nested .zip archives.</p>
                 <p>• Side‑by‑side diff with template-aware dimming.</p>
                 <p>• Dark/light theme, responsive sidebar, and keyboard-friendly UI.</p>
